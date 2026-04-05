@@ -1,0 +1,17 @@
+[
+  {
+    "Name": "Nouveau profil",
+    "Projects": [
+      {
+        "Path": "parkmeter_management.Api\\parkmeter_management.Api.csproj",
+        "Action": "Start",
+        "DebugTarget": "https"
+      },
+      {
+        "Path": "parkmeter_management.ParkmeterSimulator\\parkmeter_management.ParkmeterSimulator.csproj",
+        "Action": "Start",
+        "DebugTarget": "parkmeter_management.ParkmeterSimulator"
+      }
+    ]
+  }
+]

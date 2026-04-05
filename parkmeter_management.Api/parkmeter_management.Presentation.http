@@ -1,0 +1,6 @@
+@parkmeter_management.Presentation_HostAddress = http://localhost:5232
+
+GET {{parkmeter_management.Presentation_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

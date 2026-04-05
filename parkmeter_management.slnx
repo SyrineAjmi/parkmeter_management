@@ -1,0 +1,8 @@
+<Solution>
+  <Project Path="parkmeter_management.Api/parkmeter_management.Api.csproj" />
+  <Project Path="parkmeter_management.Application/parkmeter_management.Application.csproj" />
+  <Project Path="parkmeter_management.Domain/parkmeter_management.Domain.csproj" />
+  <Project Path="parkmeter_management.Infrastructure/parkmeter_management.Infrastructure.csproj" />
+  <Project Path="parkmeter_management.ParkmeterSimulator/parkmeter_management.ParkmeterSimulator.csproj" />
+  <Project Path="parkmeter_management.SimulatorCore/parkmeter_management.SimulatorCore.csproj" Id="eda7e9ba-2b63-407c-be13-7007327fb697" />
+</Solution>
