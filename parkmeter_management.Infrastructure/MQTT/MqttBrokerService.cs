@@ -31,7 +31,7 @@ namespace parkmeter_management.Infrastructure.Mqtt
 
             await _mqttServer.StartAsync();
             Console.WriteLine("Broker running on port 1883");
-        }
+        } 
 
         public async Task StopAsync()
         {

@@ -20,7 +20,6 @@ namespace parkmeter_management.Infrastructure.Mqtt
                     .Build();
                 await _client.ConnectAsync(options);
                 Console.WriteLine("Publisher connected to broker");
-            
             } 
         }
 
@@ -88,8 +87,10 @@ namespace parkmeter_management.Infrastructure.Mqtt
             await _client!.PublishAsync(message);
 
             Console.ForegroundColor = ConsoleColor.Cyan;
-            Console.WriteLine($"📡 New parkmeter notification: {serialNumber}");
+            Console.WriteLine($"New parkmeter notification: {serialNumber}");
             Console.ResetColor();
         }
     }
+
+
 }

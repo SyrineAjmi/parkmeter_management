@@ -63,7 +63,7 @@ namespace parkmeter_management.Application.Commands.Alerts
                         MeterStatus.IN_SERVICE.ToString());
 
                     Console.ForegroundColor = ConsoleColor.Green;
-                    Console.WriteLine($"✅ {parkmeter.SerialNumber} → IN_SERVICE");
+                    Console.WriteLine($" {parkmeter.SerialNumber} → IN_SERVICE");
                     Console.ResetColor();
                 }
             }

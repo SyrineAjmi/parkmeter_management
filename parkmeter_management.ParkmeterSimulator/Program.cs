@@ -80,7 +80,7 @@ while (true)
     if (key == ConsoleKey.M) { PrintDemoMenu(parkmeters, runningCount, simulators); continue; }
     if (key == ConsoleKey.S)
     {
-        PrintSimulatorStatus(parkmeters, simulators, runningCount);
+        PrintSimulatorStatus(parkmeters, simulators, runningCount,http);
         continue;
     }
     if (key == ConsoleKey.G)
@@ -210,7 +210,7 @@ async Task StartNewParkmeterListenerAsync(
         cancellationToken: ct);
 }
 
-
+// new added parkmeter
 async Task HandleNewParkmeterNotificationAsync(
     HttpClient http,
     List<ParkMeterInfo> parkmeters,
@@ -373,14 +373,14 @@ async Task RunTestModeAsync(
     var available = new Dictionary<ConsoleKey,
         (AlertType type, string name)>
     {
-        [ConsoleKey.D1] = (AlertType.CASH_BOX_WARN, "CASH_BOX_WARN    = 1"),
-        [ConsoleKey.D2] = (AlertType.CASH_BOX_FULL, "CASH_BOX_FULL    = 2"),
-        [ConsoleKey.D3] = (AlertType.PAPER_LOW, "PAPER_LOW        = 8"),
-        [ConsoleKey.D4] = (AlertType.PAPER_EMPTY, "PAPER_EMPTY      = 16"),
-        [ConsoleKey.D5] = (AlertType.HARDWARE_FAILURE, "HARDWARE_FAILURE = 64"),
-        [ConsoleKey.D6] = (AlertType.DOOR_OPEN, "DOOR_OPEN        = 128"),
-        [ConsoleKey.D7] = (AlertType.POWER_FAILURE, "POWER_FAILURE    = 256"),
-        [ConsoleKey.D8] = (AlertType.CONNECTION_LOST, "CONNECTION_LOST  = 512"),
+        [ConsoleKey.D1] = (AlertType.CASH_BOX_WARN, "CASH_BOX_WARN"),
+        [ConsoleKey.D2] = (AlertType.CASH_BOX_FULL, "CASH_BOX_FULL"),
+        [ConsoleKey.D3] = (AlertType.PAPER_LOW, "PAPER_LOW"),
+        [ConsoleKey.D4] = (AlertType.PAPER_EMPTY, "PAPER_EMPTY"),
+        [ConsoleKey.D5] = (AlertType.HARDWARE_FAILURE, "HARDWARE_FAILURE"),
+        [ConsoleKey.D6] = (AlertType.DOOR_OPEN, "DOOR_OPEN"),
+        [ConsoleKey.D7] = (AlertType.POWER_FAILURE, "POWER_FAILURE"),
+        [ConsoleKey.D8] = (AlertType.CONNECTION_LOST, "CONNECTION_LOST"),
     };
 
     var selected = new HashSet<AlertType>();
@@ -389,7 +389,7 @@ async Task RunTestModeAsync(
     {
         Console.ForegroundColor = ConsoleColor.Magenta;
         Console.WriteLine("\n──────────────────────────────────────────────────────────────");
-        Console.WriteLine("  TEST MODE — Select alerts (multi-select possible)");
+        Console.WriteLine("  TEST MODE — Select alert(s)");
         Console.WriteLine("  select with number keys, ENTER to confirm");
         Console.WriteLine("──────────────────────────────────────────────────────────────");
 
@@ -428,10 +428,15 @@ async Task RunTestModeAsync(
 
         if (key == ConsoleKey.Enter)
         {
-            Console.WriteLine();
-            Console.ForegroundColor = ConsoleColor.Green;
-            Console.WriteLine($"  Confirmed: {string.Join(" | ", selected)}");
-            Console.ResetColor();
+            if (selected.Contains(AlertType.POWER_FAILURE) &&
+                selected.Contains(AlertType.CONNECTION_LOST))
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine(" POWER_FAILURE and CONNECTION_LOST cannot happen together!");
+                Console.ResetColor();
+                continue;
+            }
+
             return combined;
         }
 
@@ -486,10 +491,10 @@ async Task RunAgentModeAsync(
     Console.WriteLine("────────────────────────────────────────");
     Console.ResetColor();
 
-    var actionKey = Console.ReadKey(intercept: true).Key;
+    var actionKey = Console.ReadKey(intercept: true).Key; 
     Console.WriteLine();
 
-    switch (actionKey)
+    switch (actionKey) 
     {
         case ConsoleKey.E:
             await sims[idx.Value].EmptyCashBoxAsync();
@@ -535,39 +540,39 @@ void PrintDemoMenu(
     int running,
     List<ParkMeterSimulator> sims)
 {
+    var activeCount = sims.Count(s => !s.IsOffline);
+
     Console.ForegroundColor = ConsoleColor.White;
     Console.WriteLine("\n────────────────────────────────────────");
     Console.WriteLine("         PARKMETER SIMULATOR");
     Console.WriteLine("────────────────────────────────────────");
-    Console.WriteLine($"  Running: {running}/{pms.Count} parkmeters");
+    Console.WriteLine($"  Running: {activeCount}/{pms.Count} parkmeters"); // ← use activeCount
     Console.WriteLine("────────────────────────────────────────");
 
     for (int i = 0; i < pms.Count; i++)
     {
         string indicator;
-        if (i >= running)
+        if (i >= sims.Count)
             indicator = "OFF";
         else if (sims[i].IsOffline)
-            indicator = "OFFLINE ⚡";
+            indicator = "OFFLINE ";
         else
             indicator = "ON";
 
         Console.WriteLine($"  [{i + 1}] {pms[i].SerialNumber} {indicator}");
     }
+
     Console.ForegroundColor = ConsoleColor.Gray;
     Console.WriteLine("────────────────────────────────────────");
     Console.WriteLine("  [+] Power ON next parkmeter ");
     Console.WriteLine("  [-] Power OFF last parkmeter");
 
-
-    if (running > 0)  
+    if (activeCount > 0)
     {
         Console.ForegroundColor = ConsoleColor.Cyan;
         Console.WriteLine("──────────────────────────────────────────────────────────────");
         Console.WriteLine("  [S] Status   [G] Agent   [T] Test   [M] Menu   [Q] Quit");
         Console.WriteLine("──────────────────────────────────────────────────────────────");
-
-
     }
     Console.ResetColor();
 }
@@ -585,10 +590,11 @@ void PrintTestSourceMenu(List<ParkMeterInfo> pms, int running)
 }
 
 
-void PrintSimulatorStatus(
+async Task PrintSimulatorStatus(
     List<ParkMeterInfo> pms,
     List<ParkMeterSimulator> sims,
-    int running)
+    int running,
+    HttpClient http)
 {
     Console.ForegroundColor = ConsoleColor.DarkCyan;
     Console.WriteLine("\n════════════════════════════════════════");
@@ -598,6 +604,10 @@ void PrintSimulatorStatus(
     for (int i = 0; i < running; i++)
     {
         var sim = sims[i];
+
+        // fetch active alerts from API
+        var activeAlerts = await FetchActiveAlertsAsync(http, pms[i].Id);
+
         Console.ForegroundColor = ConsoleColor.White;
         Console.WriteLine($"\n  [{i + 1}] {pms[i].SerialNumber}");
         Console.ResetColor();
@@ -620,23 +630,22 @@ void PrintSimulatorStatus(
         Console.WriteLine($"      Paper:    {sim.PaperLevel}%");
         Console.ResetColor();
 
-        // Flags
-        var flags = new List<string>();
-        if (sim.HardwareFailure) flags.Add("HARDWARE_FAILURE");
-        if (sim.DoorOpen) flags.Add("DOOR_OPEN");
-        if (sim.IsOffline) flags.Add("OFFLINE");
+        // Flags from API
+        if (sim.Status == "IN_SERVICE")
+            activeAlerts.Clear();
 
+        if (sim.IsOffline) activeAlerts.Add("OFFLINE");
 
-        if (flags.Count > 0)
+        if (activeAlerts.Count > 0)
         {
             Console.ForegroundColor = ConsoleColor.Red;
-            Console.WriteLine($"Flags: {string.Join(" | ", flags)}");
+            Console.WriteLine($"      Flags:    {string.Join(" | ", activeAlerts)}");
             Console.ResetColor();
         }
         else
         {
             Console.ForegroundColor = ConsoleColor.Green;
-            Console.WriteLine($" Flags:none");
+            Console.WriteLine($"      Flags:    ✅ none");
             Console.ResetColor();
         }
     }
@@ -646,6 +655,23 @@ void PrintSimulatorStatus(
     Console.ResetColor();
 }
 
+
+async Task<List<string>> FetchActiveAlertsAsync(
+    HttpClient http, Guid parkmeterID)
+{
+    var response = await http.GetAsync(
+        $"api/alerts/parkmeter/{parkmeterID}");
+    if (!response.IsSuccessStatusCode) return new List<string>();
+
+    var json = await response.Content.ReadAsStringAsync();
+    var alerts = JsonSerializer.Deserialize<List<AlertInfo>>(
+        json, jsonOptions) ?? new List<AlertInfo>();
+
+    return alerts
+        .Where(a => a.Status == "NOT_RESOLVED")
+        .Select(a => a.Type)
+        .ToList();
+}
 
 // ── logging ───────────────────────────────────────────
 void LogDemo(string message)
@@ -676,6 +702,12 @@ class ParkMeterConfigInfo
     public Guid ParkmeterID { get; set; }
     public decimal PricePerHour { get; set; }
     public int MaxDuration { get; set; } 
+}
+
+class AlertInfo
+{
+    public string Type { get; set; } = string.Empty;
+    public string Status { get; set; } = string.Empty;
 }
 
 

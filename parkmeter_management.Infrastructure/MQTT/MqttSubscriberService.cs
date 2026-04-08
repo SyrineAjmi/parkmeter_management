@@ -52,6 +52,8 @@ namespace parkmeter_management.Infrastructure.Mqtt
                     await HandlePaperRefilledAsync(payload);
                 else if (topic.EndsWith("/door-closed"))
                     await HandleDoorClosedAsync(payload);
+                else if (topic.EndsWith("/reconnected"))
+                    await HandleReconnectedAsync(payload);
                 else
                     Console.WriteLine($"Unknown topic: {topic}");
             };
@@ -62,13 +64,14 @@ namespace parkmeter_management.Infrastructure.Mqtt
             await _client.SubscribeAsync("parkmeters/+/cash-removed"); 
             await _client.SubscribeAsync("parkmeters/+/paper-refilled");
             await _client.SubscribeAsync("parkmeters/+/door-closed");
+            await _client.SubscribeAsync("parkmeters/+/reconnected");
 
             Console.WriteLine("Subscribed to parkmeter topics");
+        
         }
 
 
-
-        // alert handling
+        // alert 
         private async Task HandleAlertAsync(string payload) 
         {
             try
@@ -114,7 +117,7 @@ namespace parkmeter_management.Infrastructure.Mqtt
         }
 
 
-        // transaction handling 
+        // transaction  
         private async Task HandleTransactionAsync(string payload)
         {
             try
@@ -148,6 +151,7 @@ namespace parkmeter_management.Infrastructure.Mqtt
             }
         }
 
+        // cashbox
         private async Task HandleCashRemovedAsync(string payload)
         {
             Console.ForegroundColor = ConsoleColor.Magenta;
@@ -215,7 +219,7 @@ namespace parkmeter_management.Infrastructure.Mqtt
                     a.Status == AlertStatus.NOT_RESOLVED &&
                     (a.Type == AlertType.PAPER_EMPTY ||
                      a.Type == AlertType.HARDWARE_FAILURE || 
-                     a.Type == AlertType.DOOR_OPEN ));
+                     a.Type == AlertType.DOOR_OPEN));
 
                 // 5. Revert to IN_SERVICE if not blocked
                 var parkmeter = await parkmeterRepo.GetByIdAsync(parkmeterID);
@@ -254,6 +258,7 @@ namespace parkmeter_management.Infrastructure.Mqtt
             }
         }
 
+        // paper refill
         private async Task HandlePaperRefilledAsync(string payload)
         {
             try
@@ -337,6 +342,7 @@ namespace parkmeter_management.Infrastructure.Mqtt
             }
         }
 
+        // door closed
         private async Task HandleDoorClosedAsync(string payload)
         {
             Console.ForegroundColor = ConsoleColor.Magenta;
@@ -413,6 +419,40 @@ namespace parkmeter_management.Infrastructure.Mqtt
                 Console.ResetColor();
             }
         }
+
+        // parkmeter connected again after lost connection
+        private async Task HandleReconnectedAsync(string payload)
+        {
+            try
+            {
+                var raw = JsonSerializer.Deserialize<JsonElement>(payload);
+                var parkmeterID = Guid.Parse(
+                    raw.GetProperty("ParkmeterId").GetString()!);
+
+                using var scope = _serviceProvider.CreateScope();
+                var alertRepo = scope.ServiceProvider
+                    .GetRequiredService<IAlertRepository>();
+
+                // Auto-resolve CONNECTION_LOST alerts
+                var alerts = await alertRepo.GetByParkmeterAsync(parkmeterID);
+                foreach (var a in alerts.Where(a =>
+                    a.Status == AlertStatus.NOT_RESOLVED &&
+                    a.Type == AlertType.CONNECTION_LOST))
+                {
+                    a.Status = AlertStatus.RESOLVED;
+                    a.ResolvedAt = DateTime.UtcNow;
+                    await alertRepo.UpdateAsync(a);
+                    Console.WriteLine($"✅ Auto-resolved on reconnect: CONNECTION_LOST");
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine($"Reconnected error: {ex.Message}");
+                Console.ResetColor();
+            }
+        }
+        
         public async Task StopAsync()
         {
             if (_client != null)

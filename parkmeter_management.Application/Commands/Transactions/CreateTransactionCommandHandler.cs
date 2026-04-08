@@ -20,7 +20,7 @@ namespace parkmeter_management.Application.Commands.Transactions
             _transactionRepository = transactionRepository;
             _sessionRepository = sessionRepository;
         }
-
+        
         public async Task<Guid> Handle(
             CreateTransactionCommand command, CancellationToken ct)
         {
