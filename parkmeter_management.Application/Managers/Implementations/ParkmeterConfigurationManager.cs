@@ -56,11 +56,13 @@ namespace parkmeter_management.Application.Managers.Implementations
             return true;
         }
 
+
         public async Task<ParkMeterConfig?> GetConfiguration(Guid parkmeterId)
         {
             return await _configurationRepository
                 .GetByParkMeterIdAsync(parkmeterId);
         }
+
 
         public async Task<bool> ApplyToParkmeter(Guid parkmeterId)
         {

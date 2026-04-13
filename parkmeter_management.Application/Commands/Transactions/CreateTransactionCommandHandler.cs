@@ -1,6 +1,7 @@
 ﻿using MediatR;
 using parkmeter_management.Application.Commands.Transactions;
 using parkmeter_management.Application.Interfaces.Repositories;
+using parkmeter_management.Application.Interfaces.Services;
 using parkmeter_management.Domain.Entities;
 using parkmeter_management.Domain.Enums;
 using static System.Collections.Specialized.BitVector32;
@@ -12,13 +13,18 @@ namespace parkmeter_management.Application.Commands.Transactions
     {
         private readonly ITransactionRepository _transactionRepository;
         private readonly ISessionRepository _sessionRepository;
+        private readonly INotificationService _notificationService;
+
 
         public CreateTransactionCommandHandler(
             ITransactionRepository transactionRepository,
-            ISessionRepository sessionRepository)
+            ISessionRepository sessionRepository,
+            INotificationService notificationService)
+
         {
             _transactionRepository = transactionRepository;
             _sessionRepository = sessionRepository;
+            _notificationService = notificationService;
         }
         
         public async Task<Guid> Handle(
@@ -56,6 +62,10 @@ namespace parkmeter_management.Application.Commands.Transactions
             };
 
             await _transactionRepository.AddAsync(transaction);
+            await _notificationService.NotifyNewTransaction(
+                        command.ParkmeterId,
+                        command.Amount,
+                        command.Status.ToString());
 
             // only update session totals for COMPLETED transactions
             if (command.Status == TransactionStatus.COMPLETED)
@@ -64,6 +74,8 @@ namespace parkmeter_management.Application.Commands.Transactions
                 activeSession.TotalAmount += command.Amount;
                 await _sessionRepository.UpdateAsync(activeSession);
             }
+
+
 
             return transaction.Id;
         }

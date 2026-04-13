@@ -21,5 +21,14 @@ namespace parkmeter_management.Application.Managers.Implementations
             => await _mediator.Send(
                 new GetSessionsByParkmeterQuery
                 { ParkmeterId = parkmeterId });
+
+        public async Task<List<Session>> GetByDateRange(
+            DateTime? from, DateTime? to)
+            => await _mediator.Send(
+                new GetSessionsByDateRangeQuery
+                {
+                    From = from,
+                    To = to
+                });
     }
 }

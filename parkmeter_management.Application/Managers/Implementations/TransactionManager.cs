@@ -31,5 +31,19 @@ namespace parkmeter_management.Application.Managers.Implementations
             => await _mediator.Send(
                 new GetTransactionsByStatusQuery { Status = status });
 
+        public async Task<List<Transaction>> GetBySession(Guid sessionId)
+            => await _mediator.Send(
+                new GetTransactionsBySessionQuery
+                { SessionId = sessionId });
+
+        public async Task<List<Transaction>> GetByDateRange(
+            DateTime? from, DateTime? to)
+            => await _mediator.Send(
+                new GetTransactionsByDateRangeQuery
+                {
+                    From = from,
+                    To = to
+                });
+
     }
 }

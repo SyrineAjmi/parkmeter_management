@@ -31,12 +31,12 @@ namespace parkmeter_management.Api.Validators
                 .WithMessage("Role is required")
                 .Must(r => new[]
                 {
-                    "AGENT_INSTALLATION",
+                    "AGENT_INSTALLATION", 
                     "GESTIONNAIRE_SYSTEME",
                     "SUPERVISEUR",
                     "RESPONSABLE_FINANCIER"
                 }.Contains(r))
-                .WithMessage("Invalid role value");
+                .WithMessage("Invalid role value"); 
         }
     }
 }

@@ -1,21 +1,38 @@
-﻿using Microsoft.AspNetCore.Mvc;
-using parkmeter_management.Application.Managers.Interfaces;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using parkmeter_management.Api.DTOs;
+using parkmeter_management.Api.s;
+using parkmeter_management.Application.Managers.Implementations;
+using parkmeter_management.Application.Managers.Interfaces;
 using parkmeter_management.Domain.Enums;
 
 namespace parkmeter_management.Api.Controllers
 {
+
+
     [ApiController]
     [Route("api/[controller]")]
     public class ParkmetersController : ControllerBase
     {
         private readonly IParkmeterManager _parkmeterManager;
+        private readonly IAlertManager _alertManager;
+        private readonly IParkmeterConfigurationManager _configurationManager;
+        private readonly ISessionManager _sessionManager;
 
 
-        public ParkmetersController(IParkmeterManager parkmeterManager)
+        public ParkmetersController(IParkmeterManager parkmeterManager, 
+                                    IAlertManager alertManager,
+                                    IParkmeterConfigurationManager configurationManager,
+                                    ISessionManager sessionManager)
         {
+
             _parkmeterManager = parkmeterManager;
+            _alertManager = alertManager;
+            _configurationManager = configurationManager;
+            _sessionManager = sessionManager;
+
         }
+
 
 
         [HttpGet]
@@ -54,6 +71,61 @@ namespace parkmeter_management.Api.Controllers
 
 
 
+        [HttpGet("site/{siteId}")]
+        public async Task<IActionResult> GetBySite(Guid siteId)
+        {
+            var parkmeters = await _parkmeterManager.GetBySite(siteId);
+            var dtos = parkmeters.Select(p => new ParkmeterDto
+            {
+                Id = p.Id,
+                SerialNumber = p.SerialNumber,
+                SiteId = p.SiteId,
+                Status = p.Status.ToString(),
+                CreatedAt = p.CreatedAt
+            });
+            return Ok(dtos);
+        }
+
+
+
+        [HttpGet("filter")]
+        public async Task<IActionResult> FilterByStatus(
+            [FromQuery] string status)
+        {
+            if (string.IsNullOrEmpty(status))
+            {
+                var all = await _parkmeterManager.GetAllParkmeters();
+                return Ok(all.Select(p => new ParkmeterDto
+                {
+                    Id = p.Id,
+                    SerialNumber = p.SerialNumber,
+                    SiteId = p.SiteId,
+                    Status = p.Status.ToString(),
+                    CreatedAt = p.CreatedAt
+                }));
+            }
+
+            if (!Enum.TryParse<MeterStatus>(status, true, out var meterStatus))
+                return BadRequest("Invalid status value");
+
+            var parkmeters = await _parkmeterManager
+                .FilterByStatus(meterStatus); 
+
+            var dtos = parkmeters.Select(p => new ParkmeterDto
+            {
+                Id = p.Id,
+                SerialNumber = p.SerialNumber,
+                SiteId = p.SiteId,
+                Status = p.Status.ToString(),
+                CreatedAt = p.CreatedAt
+            });
+
+            return Ok(dtos);
+        }
+
+
+
+        [Authorize(Roles = "AGENT_INSTALLATION")]
         [HttpPost]
         public async Task<IActionResult> AddParkmeter(
             [FromBody] AddParkmeterRequest request)
@@ -70,8 +142,9 @@ namespace parkmeter_management.Api.Controllers
             }
         }
 
-        
 
+
+        [Authorize(Roles = "AGENT_INSTALLATION")]
         [HttpPut("{id}/assign-site")]
         public async Task<IActionResult> AssignToSite(
             Guid id, [FromBody] AssignSiteRequest request)
@@ -83,6 +156,7 @@ namespace parkmeter_management.Api.Controllers
 
 
 
+        [Authorize(Roles = "GESTIONNAIRE_SYSTEME")]
         [HttpPut("{id}/status")]
         public async Task<IActionResult> ChangeStatus(
         Guid id, [FromBody] ChangeStatusRequest request)
@@ -106,53 +180,69 @@ namespace parkmeter_management.Api.Controllers
 
 
 
-        [HttpGet("site/{siteId}")]
-        public async Task<IActionResult> GetBySite(Guid siteId)
+        [HttpGet("{id}/details")]
+        public async Task<IActionResult> GetDetails(Guid id)
         {
-            var parkmeters = await _parkmeterManager.GetBySite(siteId);
-            var dtos = parkmeters.Select(p => new ParkmeterDto
+            var parkmeter = await _parkmeterManager
+                .GetById(id);
+            if (parkmeter == null) return NotFound();
+
+            var config = await _configurationManager
+                .GetConfiguration(id);
+
+            var activeAlerts = await _alertManager
+                .GetByParkmeter(id); 
+
+            var alertDtos = activeAlerts
+                .Where(a => a.Status == AlertStatus.NOT_RESOLVED)
+                            .Select(a => new AlertDto
+                {
+                    Id = a.Id,
+                    ParkmeterId = a.ParkmeterId,
+                    Type = a.Type.ToString(),
+                    Priority = a.Priority.ToString(),
+                    Status = a.Status.ToString(),
+                    Description = a.Description,
+                    CreatedAt = a.CreatedAt,
+                    ResolvedAt = a.ResolvedAt
+                }).ToList();
+
+            var sessions = await _sessionManager
+                .GetByParkmeter(id);
+            var currentSession = sessions
+                .FirstOrDefault(s =>
+                    s.Status == SessionStatus.ACTIVE); 
+
+            return Ok(new
             {
-                Id = p.Id,
-                SerialNumber = p.SerialNumber,
-                SiteId = p.SiteId,
-                Status = p.Status.ToString(),
-                CreatedAt = p.CreatedAt
+                Parkmeter = new ParkmeterDto
+                {
+                    Id = parkmeter.Id,
+                    SerialNumber = parkmeter.SerialNumber,
+                    SiteId = parkmeter.SiteId,
+                    Status = parkmeter.Status.ToString(),
+                    CreatedAt = parkmeter.CreatedAt
+                },
+                Config = config == null ? null : new ParkMeterConfigDto
+                {
+                    ParkmeterId = config.ParkmeterId,
+                    PricePerHour = config.PricePerHour,
+                    MaxDuration = config.MaxDuration
+                },
+                ActiveAlerts = activeAlerts,
+                CurrentSession = currentSession == null ? null : new SessionDto
+                {
+                    Id = currentSession.Id,
+                    ParkmeterId = currentSession.ParkmeterId,
+                    StartDateTime = currentSession.StartDateTime,
+                    TotalTransactions = currentSession.TotalTransactions,
+                    TotalAmount = currentSession.TotalAmount,
+                    Status = currentSession.Status.ToString()
+                }
             });
-            return Ok(dtos);
         }
-
-
-
-        [HttpGet("filter")]
-        public async Task<IActionResult> FilterByStatus(
-            [FromQuery] string status)
-        {
-            var parkmeters = await _parkmeterManager.GetAllParkmeters();
-
-            if (!string.IsNullOrEmpty(status) &&
-                Enum.TryParse<MeterStatus>(status, true, out var meterStatus))
-            {
-                parkmeters = parkmeters
-                    .Where(p => p.Status == meterStatus)
-                    .ToList();
-            }
-
-            var dtos = parkmeters.Select(p => new ParkmeterDto
-            {
-                Id = p.Id,
-                SerialNumber = p.SerialNumber,
-                SiteId = p.SiteId,
-                Status = p.Status.ToString(),
-                CreatedAt = p.CreatedAt
-            });
-
-            return Ok(dtos);
-        
-        }
-
 
     }
-
 
 
     public class AddParkmeterRequest

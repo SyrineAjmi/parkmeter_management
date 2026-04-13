@@ -11,5 +11,7 @@ namespace parkmeter_management.Application.Managers.Interfaces
         Task<List<Parkmeter>> GetAllParkmeters();
         Task<Parkmeter?> GetById(Guid id);
         Task<List<Parkmeter>> GetBySite(Guid siteId);
+        Task<List<Parkmeter>> FilterByStatus(MeterStatus status);
+
     }
 }

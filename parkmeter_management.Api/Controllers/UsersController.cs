@@ -1,4 +1,5 @@
 ﻿using FluentValidation;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using parkmeter_management.Api.DTOs;
@@ -18,6 +19,9 @@ namespace parkmeter_management.Api.Controllers
             _userManager = userManager;
         }
 
+
+
+        [Authorize(Roles = "GESTIONNAIRE_SYSTEME")]
         [HttpGet]
         public async Task<IActionResult> GetAll()
         {
@@ -34,6 +38,9 @@ namespace parkmeter_management.Api.Controllers
             return Ok(dtos);
         }
 
+
+
+        [Authorize(Roles = "GESTIONNAIRE_SYSTEME")]
         [HttpGet("{id}")]
         public async Task<IActionResult> GetById(Guid id)
         {
@@ -51,6 +58,9 @@ namespace parkmeter_management.Api.Controllers
             });
         }
 
+
+
+        [Authorize(Roles = "GESTIONNAIRE_SYSTEME")]
         [HttpPost]
         public async Task<IActionResult> Create(
             [FromBody] CreateUserRequest request)
@@ -71,6 +81,41 @@ namespace parkmeter_management.Api.Controllers
             }
         }
 
+
+
+        [Authorize(Roles = "GESTIONNAIRE_SYSTEME")]
+        [HttpPut("{id}/change-password")]
+        public async Task<IActionResult> ChangePassword(
+            Guid id,
+            [FromBody] ChangePasswordRequest request)
+        {
+            if (request.NewPassword != request.ConfirmPassword)
+                return BadRequest(new
+                {
+                    message = "Les mots de passe ne correspondent pas"
+                });
+
+            var result = await _userManager
+                .ChangePassword(
+                    id,
+                    request.CurrentPassword,
+                    request.NewPassword);
+
+            if (!result)
+                return BadRequest(new
+                {
+                    message = "Mot de passe actuel incorrect"
+                });
+
+            return Ok(new
+            {
+                message = "Mot de passe modifié avec succès"
+            });
+        }
+
+
+
+        [Authorize(Roles = "GESTIONNAIRE_SYSTEME")]
         [HttpPut("{id}")]
         public async Task<IActionResult> Update(
             Guid id, [FromBody] UpdateUserRequest request)
@@ -82,6 +127,9 @@ namespace parkmeter_management.Api.Controllers
             return Ok("User updated successfully");
         }
 
+
+
+        [Authorize(Roles = "GESTIONNAIRE_SYSTEME")]
         [HttpDelete("{id}")]
         public async Task<IActionResult> Delete(Guid id)
         {
@@ -98,12 +146,17 @@ namespace parkmeter_management.Api.Controllers
         public string Password { get; set; } = string.Empty;
         public string Role { get; set; } = string.Empty;
     }
-
     public class UpdateUserRequest
     {
         public string Name { get; set; } = string.Empty;
         public string Email { get; set; } = string.Empty;
         public string Role { get; set; } = string.Empty;
         public bool IsActive { get; set; }
+    }
+    public class ChangePasswordRequest
+    {
+        public string CurrentPassword { get; set; } = string.Empty;
+        public string NewPassword { get; set; } = string.Empty;
+        public string ConfirmPassword { get; set; } = string.Empty;
     }
 }

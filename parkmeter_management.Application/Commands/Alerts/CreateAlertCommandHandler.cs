@@ -14,28 +14,32 @@ namespace parkmeter_management.Application.Commands.Alerts
         private readonly IParkmeterRepository _parkmeterRepository;
         private readonly ISessionRepository _sessionRepository;
         private readonly IMqttPublisherService _mqttPublisher;
+        private readonly INotificationService _notificationService;
+
 
         public CreateAlertCommandHandler(
             IAlertRepository alertRepository,
             IParkmeterRepository parkmeterRepository,
             ISessionRepository sessionRepository,
-            IMqttPublisherService mqttPublisher)
+            IMqttPublisherService mqttPublisher,
+            INotificationService notificationService)
         {
             _alertRepository = alertRepository;
             _parkmeterRepository = parkmeterRepository;
             _sessionRepository = sessionRepository;
             _mqttPublisher = mqttPublisher;
+            _notificationService = notificationService;
         }
 
         public async Task<Guid> Handle(
             CreateAlertCommand command, CancellationToken ct)
         {
-            // ── Get parkmeter ─────────────────────────
+            //  get parkmeter 
             var parkmeter = await _parkmeterRepository
                 .GetByIdAsync(command.ParkmeterId);
             if (parkmeter == null) return Guid.Empty;
 
-            // ── Operational alerts only when IN_SERVICE ─
+            //  op alerts 
             var operationalAlerts =
                 AlertType.CASH_BOX_WARN |
                 AlertType.CASH_BOX_FULL |
@@ -46,14 +50,16 @@ namespace parkmeter_management.Application.Commands.Alerts
                 && parkmeter.Status != MeterStatus.IN_SERVICE
                 && parkmeter.Status != MeterStatus.TEMPORARILY_UNAVAILABLE)
             {
-                Console.ForegroundColor = ConsoleColor.Yellow;
-                Console.WriteLine($"⚠️ Alert {command.Type} ignored — " +
-                    $"{parkmeter.SerialNumber} is {parkmeter.Status}");
-                Console.ResetColor();
+                //Console.ForegroundColor = ConsoleColor.Yellow;
+                //Console.WriteLine($" Alert {command.Type} ignored — " +
+                //    $"{parkmeter.SerialNumber} is {parkmeter.Status}");
+                //Console.ResetColor();
                 return Guid.Empty;
             }
 
-            // ── Blocking alerts → TEMPORARILY_UNAVAILABLE
+
+
+            //  blocking alerts : TEMPORARILY_UNAVAILABLE
             var blockingAlerts =
                 AlertType.CASH_BOX_FULL |
                 AlertType.PAPER_EMPTY |
@@ -69,13 +75,13 @@ namespace parkmeter_management.Application.Commands.Alerts
                     command.ParkmeterId,
                     MeterStatus.TEMPORARILY_UNAVAILABLE.ToString());
 
-                Console.ForegroundColor = ConsoleColor.Yellow;
-                Console.WriteLine($"⚠️ {parkmeter.SerialNumber} → " +
-                    $"TEMPORARILY_UNAVAILABLE ({command.Type})");
-                Console.ResetColor();
+                //Console.ForegroundColor = ConsoleColor.Yellow;
+                //Console.WriteLine($"{parkmeter.SerialNumber} → " +
+                //    $"TEMPORARILY_UNAVAILABLE ({command.Type})");
+                //Console.ResetColor();
             }
 
-            // ── POWER_FAILURE → OUT_OF_SERVICE ────────
+            // powr fail :  OUT_OF_SERVICE 
             if (command.Type.HasFlag(AlertType.POWER_FAILURE))
             {
                 parkmeter.Status = MeterStatus.OUT_OF_SERVICE;
@@ -84,13 +90,13 @@ namespace parkmeter_management.Application.Commands.Alerts
                     command.ParkmeterId,
                     MeterStatus.OUT_OF_SERVICE.ToString());
 
-                Console.ForegroundColor = ConsoleColor.Red;
-                Console.WriteLine($"⚡ {parkmeter.SerialNumber} → OUT_OF_SERVICE");
-                Console.ResetColor();
+                //Console.ForegroundColor = ConsoleColor.Red;
+                //Console.WriteLine($" {parkmeter.SerialNumber} : OUT_OF_SERVICE");
+                //Console.ResetColor();
             }
 
 
-            // ── Save alert ────────────────────────────
+            // save alert
             var alert = new Alert
             {
                 Id = Guid.NewGuid(),
@@ -103,6 +109,10 @@ namespace parkmeter_management.Application.Commands.Alerts
             };
 
             await _alertRepository.AddAsync(alert);
+            await _notificationService.NotifyNewAlert(
+                                  command.ParkmeterId,
+                                  command.Type.ToString(),
+                                  AlertPriorityHelper.GetPriority(command.Type).ToString());
             return alert.Id;
         }
     }

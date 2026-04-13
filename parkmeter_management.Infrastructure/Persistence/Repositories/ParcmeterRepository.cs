@@ -1,6 +1,7 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using parkmeter_management.Application.Interfaces.Repositories;
 using parkmeter_management.Domain.Entities;
+using parkmeter_management.Domain.Enums;
 
 namespace parkmeter_management.Infrastructure.Persistence.Repositories
 {
@@ -60,6 +61,14 @@ namespace parkmeter_management.Infrastructure.Persistence.Repositories
         {
             return await _context.Parkmeters
                 .FirstOrDefaultAsync(p => p.SerialNumber == serialNumber);
+        }
+        public async Task<IEnumerable<Parkmeter>> GetByStatusAsync(
+            MeterStatus status)
+        {
+            return await _context.Parkmeters
+                .Where(p => p.Status == status)
+                .OrderByDescending(p => p.CreatedAt)
+                .ToListAsync();
         }
     }
 }

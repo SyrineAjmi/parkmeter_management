@@ -12,18 +12,22 @@ namespace parkmeter_management.Application.Commands.Parkmeters
         private readonly IParkmeterConfigurationRepository _configurationRepository;
         private readonly IMqttPublisherService _mqttPublisher;
         private readonly IAlertRepository _alertRepository;
+        private readonly INotificationService _notificationService;
+
 
         public ChangeStatusCommandHandler(
             IParkmeterRepository parkmeterRepository,
             IParkmeterConfigurationRepository configurationRepository,
             IMqttPublisherService mqttPublisher,
-            IAlertRepository alertRepository)
+            IAlertRepository alertRepository,
+            INotificationService notificationService)
 
         {
             _parkmeterRepository = parkmeterRepository;
             _configurationRepository = configurationRepository;
             _mqttPublisher = mqttPublisher;
             _alertRepository = alertRepository;
+            _notificationService = notificationService;
         }
 
         public async Task<bool> Handle(
@@ -33,14 +37,14 @@ namespace parkmeter_management.Application.Commands.Parkmeters
                 .GetByIdAsync(command.ParkmeterId);
             if (parkmeter == null) return false;
 
-            // Cannot set IN_SERVICE without config
+            // config required for in_service
             if (command.NewStatus == MeterStatus.IN_SERVICE)
             {
                 var config = await _configurationRepository
                     .GetByParkMeterIdAsync(command.ParkmeterId);
                 if (config == null) return false;
 
-                // Auto-resolve ALL alerts when operator activates
+                // auto-resolve all alerts when the status manually set to in_service
                 var alerts = await _alertRepository
                     .GetByParkmeterAsync(command.ParkmeterId);
 
@@ -50,7 +54,7 @@ namespace parkmeter_management.Application.Commands.Parkmeters
                     a.Status = AlertStatus.RESOLVED;
                     a.ResolvedAt = DateTime.UtcNow;
                     await _alertRepository.UpdateAsync(a);
-                    Console.WriteLine($"✅ Auto-resolved on activation: {a.Type}");
+                    //Console.WriteLine($"Auto-resolved on activation: {a.Type}");
                 }
             }
 
@@ -60,9 +64,13 @@ namespace parkmeter_management.Application.Commands.Parkmeters
                 command.ParkmeterId,
                 command.NewStatus.ToString());
 
+            await _notificationService.NotifyStatusChanged(
+                    command.ParkmeterId,
+                    command.NewStatus.ToString());
 
-            Console.WriteLine($"Status changed: {parkmeter.SerialNumber} " +
-        $"→ {command.NewStatus}");
+
+            //Console.WriteLine($"Status changed: {parkmeter.SerialNumber} " +
+            //$"→ {command.NewStatus}");
 
             return true;
         }

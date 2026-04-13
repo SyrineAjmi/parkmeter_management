@@ -9,5 +9,8 @@ namespace parkmeter_management.Application.Managers.Interfaces
         Task<List<Transaction>> GetAllTransactions();
         Task<List<Transaction>> GetByParkmeter(Guid parkmeterId);
         Task<List<Transaction>> FilterByStatus(string status);
+        Task<List<Transaction>> GetBySession(Guid sessionId);
+        Task<List<Transaction>> GetByDateRange(
+            DateTime? from, DateTime? to);
     }
 }

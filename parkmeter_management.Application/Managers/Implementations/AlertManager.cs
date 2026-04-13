@@ -31,5 +31,12 @@ namespace parkmeter_management.Application.Managers.Implementations
         public async Task<List<Alert>> FilterByPriority(string priority)
             => await _mediator.Send(
                 new GetAlertsByPriorityQuery { Priority = priority });
+
+        public async Task<List<Alert>> GetUnresolvedAlerts()
+            => await _mediator.Send(new GetUnresolvedAlertsQuery());
+
+        public async Task<List<Alert>> GetByParkmeter(Guid parkmeterId)
+            => await _mediator.Send(
+                new GetAlertsByParkmeterQuery { ParkmeterID = parkmeterId });
     }
 }

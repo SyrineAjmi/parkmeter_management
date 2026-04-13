@@ -28,8 +28,6 @@ namespace parkmeter_management.Application.Commands.ParkmeterConfiguration
                 ParkmeterId = command.ParkmeterId,
                 PricePerHour = command.PricePerHour,
                 MaxDuration = command.MaxDuration,
-                //  CreatedByUserId will be extracted from JWT token after authentication is implemented
-                // Manual validation not needed here
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow
             };

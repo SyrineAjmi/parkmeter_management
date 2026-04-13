@@ -1,5 +1,6 @@
 ﻿using MediatR;
 using parkmeter_management.Application.Interfaces.Repositories;
+using parkmeter_management.Application.Interfaces.Services;
 using parkmeter_management.Domain.Entities;
 
 namespace parkmeter_management.Application.Commands.Users
@@ -8,10 +9,12 @@ namespace parkmeter_management.Application.Commands.Users
         : IRequestHandler<CreateUserCommand, Guid>
     {
         private readonly IUserRepository _userRepository;
+        private readonly IPasswordHasher _passwordHasher;
 
-        public CreateUserCommandHandler(IUserRepository userRepository)
+        public CreateUserCommandHandler(IUserRepository userRepository,IPasswordHasher passwordHasher)
         {
             _userRepository = userRepository;
+            _passwordHasher = passwordHasher;
         }
 
         public async Task<Guid> Handle(
@@ -24,9 +27,8 @@ namespace parkmeter_management.Application.Commands.Users
                 throw new Exception(
                     $"Email '{command.Email}' already exists.");
 
-            // Simple hash for now — BCrypt when JWT added
-            var passwordHash = Convert.ToBase64String(
-                System.Text.Encoding.UTF8.GetBytes(command.Password));
+            var passwordHash = _passwordHasher.Hash(command.Password);
+
 
             var user = new User
             {

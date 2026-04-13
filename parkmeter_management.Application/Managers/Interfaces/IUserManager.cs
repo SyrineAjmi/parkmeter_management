@@ -9,6 +9,11 @@ namespace parkmeter_management.Application.Managers.Interfaces
             string password, Role role);
         Task<bool> UpdateUser(Guid id, string name,
             string email, Role role, bool isActive);
+        Task<bool> ChangePassword(
+            Guid userId,
+            string currentPassword,
+            string newPassword);
+
         Task<bool> DeleteUser(Guid id);
         Task<List<User>> GetAllUsers();
         Task<User?> GetById(Guid id);

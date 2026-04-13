@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using parkmeter_management.Api.DTOs;
 using parkmeter_management.Application.Managers.Interfaces;
 
@@ -15,6 +16,9 @@ namespace parkmeter_management.Api.Controllers
             _siteManager = siteManager;
         }
 
+
+
+        //all
         [HttpGet]
         public async Task<IActionResult> GetAll()
         {
@@ -29,6 +33,9 @@ namespace parkmeter_management.Api.Controllers
             return Ok(dtos);
         }
 
+
+
+        //all
         [HttpGet("{id}")]
         public async Task<IActionResult> GetById(Guid id)
         {
@@ -44,6 +51,10 @@ namespace parkmeter_management.Api.Controllers
             });
         }
 
+
+
+
+        [Authorize(Roles = "GESTIONNAIRE_SYSTEME")]
         [HttpPost]
         public async Task<IActionResult> Create(
             [FromBody] CreateSiteRequest request)
@@ -55,6 +66,9 @@ namespace parkmeter_management.Api.Controllers
             return Ok(new { Id = id, Message = "Site created successfully" });
         }
 
+
+
+        [Authorize(Roles = "GESTIONNAIRE_SYSTEME")]
         [HttpPut("{id}")]
         public async Task<IActionResult> Update(
             Guid id, [FromBody] UpdateSiteRequest request)
@@ -65,6 +79,9 @@ namespace parkmeter_management.Api.Controllers
             return Ok("Site updated successfully");
         }
 
+
+
+        [Authorize(Roles = "GESTIONNAIRE_SYSTEME")]
         [HttpDelete("{id}")]
         public async Task<IActionResult> Delete(Guid id)
         {
@@ -72,7 +89,9 @@ namespace parkmeter_management.Api.Controllers
             if (!result) return NotFound();
             return Ok("Site deleted successfully");
         }
-    }
+
+    }           
+
 
     public class CreateSiteRequest
     {
@@ -81,10 +100,13 @@ namespace parkmeter_management.Api.Controllers
         public string Description { get; set; } = string.Empty;
     }
 
+
     public class UpdateSiteRequest
     {
         public string Name { get; set; } = string.Empty;
         public string Address { get; set; } = string.Empty;
         public string Description { get; set; } = string.Empty;
     }
+
+
 }

@@ -38,10 +38,35 @@ namespace parkmeter_management.Infrastructure.Persistence.Repositories
                 .ToListAsync();
         }
         public async Task<IEnumerable<Transaction>> GetByStatusAsync(
-    TransactionStatus status)
+            TransactionStatus status)
         {
             return await _context.Transactions
                 .Where(t => t.Status == status)
+                .ToListAsync();
+        }
+
+        public async Task<IEnumerable<Transaction>> GetBySessionAsync(
+            Guid sessionId)
+        {
+            return await _context.Transactions
+                .Where(t => t.SessionId == sessionId)
+                .OrderByDescending(t => t.CreatedAt)
+                .ToListAsync();
+        }
+
+        public async Task<IEnumerable<Transaction>> GetByDateRangeAsync(
+            DateTime? from, DateTime? to)
+        {
+            var query = _context.Transactions.AsQueryable();
+
+            if (from.HasValue)
+                query = query.Where(t => t.CreatedAt >= from.Value);
+
+            if (to.HasValue)
+                query = query.Where(t => t.CreatedAt <= to.Value);
+
+            return await query
+                .OrderByDescending(t => t.CreatedAt)
                 .ToListAsync();
         }
 

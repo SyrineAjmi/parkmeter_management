@@ -2,8 +2,8 @@
 using MQTTnet.Client;
 using parkmeter_management.Domain.Enums;
 using parkmeter_management.SimulatorCore;
-using System.Net.NetworkInformation;
 using System.Text.Json;
+
 
 
 Console.OutputEncoding = System.Text.Encoding.UTF8;

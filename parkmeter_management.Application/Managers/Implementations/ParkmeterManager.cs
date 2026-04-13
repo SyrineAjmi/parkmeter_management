@@ -59,5 +59,9 @@ namespace parkmeter_management.Application.Managers.Implementations
                 .GetBySiteAsync(siteId);
             return parkmeters.ToList();
         }
+
+        public async Task<List<Parkmeter>> FilterByStatus(MeterStatus status)
+            => await _mediator.Send(
+                new GetParkmetersByStatusQuery { Status = status });
     }
 }

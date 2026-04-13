@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using parkmeter_management.Application.Managers.Interfaces;
 
 namespace parkmeter_management.Api.Controllers
@@ -15,7 +16,9 @@ namespace parkmeter_management.Api.Controllers
             _configurationManager = configurationManager;
         }
 
-        // GET api/configuration/{parkmeterId}
+
+
+        //all
         [HttpGet("{parkmeterId}")]
         public async Task<IActionResult> GetConfiguration(Guid parkmeterId)
         {
@@ -25,7 +28,10 @@ namespace parkmeter_management.Api.Controllers
             return Ok(config);
         }
 
-        // POST api/configuration/create
+
+
+
+        [Authorize(Roles = "AGENT_INSTALLATION")]
         [HttpPost("create")]
         public async Task<IActionResult> CreateConfig(
             [FromBody] CreateConfigRequest request)
@@ -37,7 +43,10 @@ namespace parkmeter_management.Api.Controllers
             return Ok("Config created and sent to parkmeter");
         }
 
-        // PUT api/configuration/update
+
+
+
+        [Authorize(Roles = "AGENT_INSTALLATION")]
         [HttpPut("update")]
         public async Task<IActionResult> UpdateConfig(
             [FromBody] UpdateConfigRequest request)
@@ -50,7 +59,10 @@ namespace parkmeter_management.Api.Controllers
             return Ok("Config updated and sent to parkmeter");
         }
 
-        // DELETE api/configuration/{parkmeterId}
+
+
+
+        [Authorize(Roles = "GESTIONNAIRE_SYSTEME")]
         [HttpDelete("{parkmeterId}")]
         public async Task<IActionResult> DeleteConfig(Guid parkmeterId)
         {
@@ -59,7 +71,10 @@ namespace parkmeter_management.Api.Controllers
             return Ok("Config deleted");
         }
 
-        // POST api/configuration/{parkmeterId}/apply
+
+
+
+        [Authorize(Roles = "AGENT_INSTALLATION")]
         [HttpPost("{parkmeterId}/apply")]
         public async Task<IActionResult> ApplyToParkmeter(Guid parkmeterId)
         {
@@ -69,6 +84,9 @@ namespace parkmeter_management.Api.Controllers
             return Ok("Config re-applied to parkmeter");
         }
     }
+
+
+
 
     // Request models
     public class CreateConfigRequest

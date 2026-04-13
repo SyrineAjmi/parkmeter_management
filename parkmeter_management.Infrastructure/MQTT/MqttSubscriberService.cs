@@ -37,9 +37,6 @@ namespace parkmeter_management.Infrastructure.Mqtt
                 var topic = e.ApplicationMessage.Topic;
                 var payload = e.ApplicationMessage.ConvertPayloadToString();
 
-                Console.ForegroundColor = ConsoleColor.Cyan;
-                Console.WriteLine($"[DEBUG] Message received on topic: {topic}");
-                Console.ResetColor();
 
                 // router de messages 
                 if (topic.EndsWith("/alerts"))
@@ -154,9 +151,7 @@ namespace parkmeter_management.Infrastructure.Mqtt
         // cashbox
         private async Task HandleCashRemovedAsync(string payload)
         {
-            Console.ForegroundColor = ConsoleColor.Magenta;
-            Console.WriteLine("[DEBUG] HandleCashRemovedAsync called!");
-            Console.ResetColor();
+
 
             try
             {
@@ -173,6 +168,8 @@ namespace parkmeter_management.Infrastructure.Mqtt
                     .GetRequiredService<ISessionRepository>();
                 var publisher = scope.ServiceProvider
                     .GetRequiredService<IMqttPublisherService>();
+                var notificationService = scope.ServiceProvider
+                    .GetRequiredService<INotificationService>();
 
                 // 1. Close active session
                 var activeSession = await sessionRepo
@@ -185,6 +182,12 @@ namespace parkmeter_management.Infrastructure.Mqtt
                     await sessionRepo.UpdateAsync(activeSession);
                     Console.WriteLine($"📋 Session closed | " +
                         $"Total: {activeSession.TotalAmount} DT");
+
+                    //notifying after close
+                    await notificationService.NotifySessionClosed(
+                        parkmeterID,
+                        activeSession.TotalAmount,
+                        activeSession.TotalTransactions);
                 }
 
                 // 2. Open new session
@@ -296,14 +299,6 @@ namespace parkmeter_management.Infrastructure.Mqtt
                      a.Type == AlertType.HARDWARE_FAILURE ||
                      a.Type == AlertType.DOOR_OPEN));
 
-                // DEBUG
-                Console.ForegroundColor = ConsoleColor.Cyan;
-                Console.WriteLine($"[DEBUG] Remaining unresolved alerts:");
-                foreach (var a in remaining.Where(a => a.Status == AlertStatus.NOT_RESOLVED))
-                    Console.WriteLine($"[DEBUG]   → {a.Type}");
-                Console.WriteLine($"[DEBUG] stillBlocked: {stillBlocked}");
-                Console.ResetColor();
-
 
                 // 3. Revert to IN_SERVICE if not blocked
                 var parkmeter = await parkmeterRepo.GetByIdAsync(parkmeterID);
@@ -345,9 +340,6 @@ namespace parkmeter_management.Infrastructure.Mqtt
         // door closed
         private async Task HandleDoorClosedAsync(string payload)
         {
-            Console.ForegroundColor = ConsoleColor.Magenta;
-            Console.WriteLine("[DEBUG] HandleDoorClosedAsync called!");
-            Console.ResetColor();
 
             try
             {
@@ -366,12 +358,6 @@ namespace parkmeter_management.Infrastructure.Mqtt
                 // Auto-resolve DOOR_OPEN alerts
                 var alerts = await alertRepo.GetByParkmeterAsync(parkmeterID);
 
-                Console.ForegroundColor = ConsoleColor.Cyan;
-                Console.WriteLine($"[DEBUG] Found {alerts.Count()} alerts for parkmeter");
-                foreach (var a in alerts)
-                    Console.WriteLine($"[DEBUG] Alert: {a.Type} | {a.Status}");
-                Console.ResetColor();
-
                 foreach (var a in alerts.Where(a =>
                     a.Status == AlertStatus.NOT_RESOLVED &&
                     a.Type == AlertType.DOOR_OPEN))
@@ -389,14 +375,9 @@ namespace parkmeter_management.Infrastructure.Mqtt
                      a.Type == AlertType.PAPER_EMPTY ||
                      a.Type == AlertType.HARDWARE_FAILURE));
 
-                Console.ForegroundColor = ConsoleColor.Cyan;
-                Console.WriteLine($"[DEBUG] stillBlocked: {stillBlocked}");
-                Console.ResetColor();
 
                 var parkmeter = await parkmeterRepo.GetByIdAsync(parkmeterID);
-                Console.ForegroundColor = ConsoleColor.Cyan;
-                Console.WriteLine($"[DEBUG] Parkmeter status: {parkmeter?.Status}");
-                Console.ResetColor();
+
 
                 if (!stillBlocked && parkmeter != null &&
                     parkmeter.Status == MeterStatus.TEMPORARILY_UNAVAILABLE)

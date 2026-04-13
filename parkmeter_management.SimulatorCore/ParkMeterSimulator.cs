@@ -53,14 +53,20 @@ namespace parkmeter_management.SimulatorCore
 
                 await _client.SubscribeAsync($"parkmeters/{_state.Id}/status",cancellationToken: ct);
 
-                // notify backend of reconnection
-                await PublishAsync(
-                    $"parkmeters/{_state.Id}/reconnected",
-                    new
-                    {
-                        ParkmeterId = _state.Id.ToString(),
-                        CreatedAt = DateTime.UtcNow
-                    });
+                // publish reconnected if recovering from CONNECTION_LOST
+                if (_state.WasConnectionLost)
+                {
+                    _state.WasConnectionLost = false;
+                    await PublishAsync(
+                        $"parkmeters/{_state.Id}/reconnected",
+                        new
+                        {
+                            ParkmeterId = _state.Id.ToString(),
+                            CreatedAt = DateTime.UtcNow
+                        });
+                    Log("Reconnected → notified backend",
+                        ConsoleColor.Green);
+                }
 
                 Log($"Simulation started | " + $"Price: {_state.PricePerHour} DT/h | " + $"Max: {_state.MaxDuration} min",
                     ConsoleColor.White);
@@ -548,7 +554,8 @@ namespace parkmeter_management.SimulatorCore
             if (alertType.HasFlag(AlertType.CONNECTION_LOST))
             {
                 _state.IsOffline = true;
-                _state.IsConnectionLost = true; 
+                _state.IsConnectionLost = true;
+                _state.WasConnectionLost = true; 
                 Log("CONNECTION_LOST : disconnecting, will reconnect...",
                     ConsoleColor.Yellow);
             }

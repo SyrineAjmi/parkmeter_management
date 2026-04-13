@@ -1,6 +1,7 @@
-﻿using Microsoft.AspNetCore.Mvc;
-using parkmeter_management.Application.Managers.Interfaces;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using parkmeter_management.Api.DTOs;
+using parkmeter_management.Application.Managers.Interfaces;
 
 namespace parkmeter_management.Api.Controllers
 {
@@ -15,6 +16,8 @@ namespace parkmeter_management.Api.Controllers
             _transactionManager = transactionManager;
         }
 
+
+        [Authorize(Roles = "RESPONSABLE_FINANCIER")]
         [HttpGet]
         public async Task<IActionResult> GetAll()
         {
@@ -31,6 +34,10 @@ namespace parkmeter_management.Api.Controllers
             return Ok(dtos);
         }
 
+
+
+
+        [Authorize(Roles = "RESPONSABLE_FINANCIER")]
         [HttpGet("parkmeter/{parkmeterID}")]
         public async Task<IActionResult> GetByParkmeter(Guid parkmeterID)
         {
@@ -48,6 +55,10 @@ namespace parkmeter_management.Api.Controllers
             return Ok(dtos);
         }
 
+
+
+
+        [Authorize(Roles = "RESPONSABLE_FINANCIER")]
         [HttpGet("filter")]
         public async Task<IActionResult> FilterByStatus(
             [FromQuery] string status)
@@ -66,5 +77,53 @@ namespace parkmeter_management.Api.Controllers
             });
             return Ok(dtos);
         }
+
+
+        [Authorize(Roles = "RESPONSABLE_FINANCIER")]
+        [HttpGet("session/{sessionId}")]
+        public async Task<IActionResult> GetBySession(Guid sessionId)
+        {
+            var transactions = await _transactionManager
+                .GetBySession(sessionId);
+
+            var dtos = transactions
+                .Select(t => new TransactionDto
+                {
+                    Id = t.Id,
+                    ParkmeterId = t.ParkmeterId,
+                    SessionId = t.SessionId,
+                    Amount = t.Amount,
+                    Duration = t.Duration,
+                    Status = t.Status.ToString(),
+                    CreatedAt = t.CreatedAt
+                });
+
+            return Ok(dtos);
+        }
+
+
+        [Authorize(Roles = "RESPONSABLE_FINANCIER")]
+        [HttpGet("filter/date")]
+        public async Task<IActionResult> FilterByDate(
+        [FromQuery] DateTime? from,
+        [FromQuery] DateTime? to)
+        {
+            var transactions = await _transactionManager
+                .GetByDateRange(from, to);
+
+            var dtos = transactions.Select(t => new TransactionDto
+            {
+                Id = t.Id,
+                ParkmeterId = t.ParkmeterId,
+                SessionId = t.SessionId,
+                Amount = t.Amount,
+                Duration = t.Duration,
+                Status = t.Status.ToString(),
+                CreatedAt = t.CreatedAt
+            });
+
+            return Ok(dtos);
+        }
+
     }
 }

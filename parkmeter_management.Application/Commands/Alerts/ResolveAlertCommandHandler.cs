@@ -12,18 +12,19 @@ namespace parkmeter_management.Application.Commands.Alerts
         private readonly IAlertRepository _alertRepository;
         private readonly IParkmeterRepository _parkmeterRepository;
         private readonly IMqttPublisherService _mqttPublisher;
-
+        private readonly INotificationService _notificationService;
 
 
         public ResolveAlertCommandHandler(
             IAlertRepository alertRepository,
             IParkmeterRepository parkmeterRepository,
-            IMqttPublisherService mqttPublisher)
+            IMqttPublisherService mqttPublisher,
+            INotificationService notificationService)
         {
             _alertRepository = alertRepository;
             _parkmeterRepository = parkmeterRepository;
             _mqttPublisher = mqttPublisher;
-
+            _notificationService = notificationService;
         }
 
         public async Task<bool> Handle(
@@ -32,12 +33,12 @@ namespace parkmeter_management.Application.Commands.Alerts
             var alert = await _alertRepository.GetByIdAsync(request.AlertId);
             if (alert == null) return false;
 
-            // Just mark as resolved
+            // mark as resolved
             alert.Status = AlertStatus.RESOLVED;
             alert.ResolvedAt = DateTime.UtcNow;
             await _alertRepository.UpdateAsync(alert);
 
-            // Check if status should revert
+            //  checkng if status should revert 
             var remaining = await _alertRepository
                 .GetByParkmeterAsync(alert.ParkmeterId);
 
@@ -61,10 +62,13 @@ namespace parkmeter_management.Application.Commands.Alerts
                     await _mqttPublisher.PublishStatusAsync(
                         alert.ParkmeterId,
                         MeterStatus.IN_SERVICE.ToString());
+                    await _notificationService.NotifyAlertResolved(
+                            request.AlertId,
+                            alert.ParkmeterId);
 
-                    Console.ForegroundColor = ConsoleColor.Green;
-                    Console.WriteLine($" {parkmeter.SerialNumber} → IN_SERVICE");
-                    Console.ResetColor();
+                    //Console.ForegroundColor = ConsoleColor.Green;
+                    //Console.WriteLine($" {parkmeter.SerialNumber} → IN_SERVICE");
+                    //Console.ResetColor();
                 }
             }
 

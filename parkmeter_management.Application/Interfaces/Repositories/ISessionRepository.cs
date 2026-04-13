@@ -9,5 +9,7 @@ namespace parkmeter_management.Application.Interfaces.Repositories
         Task UpdateAsync(Session session);
         Task<IEnumerable<Session>> GetAllAsync();
         Task<IEnumerable<Session>> GetByParkmeterAsync(Guid parkmeterId);
+        Task<IEnumerable<Session>> GetByDateRangeAsync(
+            DateTime? from, DateTime? to);
     }
 }

@@ -48,5 +48,21 @@ namespace parkmeter_management.Infrastructure.Persistence.Repositories
                 .OrderByDescending(s => s.StartDateTime)
                 .ToListAsync();
         }
+
+        public async Task<IEnumerable<Session>> GetByDateRangeAsync(
+            DateTime? from, DateTime? to)
+        {
+            var query = _context.Sessions.AsQueryable();
+
+            if (from.HasValue)
+                query = query.Where(s => s.StartDateTime >= from.Value);
+
+            if (to.HasValue)
+                query = query.Where(s => s.StartDateTime <= to.Value);
+
+            return await query
+                .OrderByDescending(s => s.StartDateTime)
+                .ToListAsync();
+        }
     }
 }

@@ -38,7 +38,8 @@
         public bool HardwareFailure { get; set; } = false;
         public bool DoorOpen { get; set; } = false;
         public bool IsOffline { get; set; } = false;
-        public bool IsConnectionLost { get; set; } = false; 
+        public bool IsConnectionLost { get; set; } = false; // should i reconnect or stop?
+        public bool WasConnectionLost { get; set; } = false; // did i just recover from connection loss?
 
 
     }

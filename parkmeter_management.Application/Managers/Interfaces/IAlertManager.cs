@@ -10,5 +10,7 @@ namespace parkmeter_management.Application.Managers.Interfaces
         Task<List<Alert>> GetAllAlerts();
         Task<Alert?> GetById(Guid id);
         Task<List<Alert>> FilterByPriority(string priority);
+        Task<List<Alert>> GetUnresolvedAlerts();        
+        Task<List<Alert>> GetByParkmeter(Guid parkmeterID); 
     }
 }

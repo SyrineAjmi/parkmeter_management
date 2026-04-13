@@ -10,5 +10,9 @@ namespace parkmeter_management.Application.Interfaces.Repositories
         Task<Transaction?> GetByIdAsync(Guid id);
         Task<IEnumerable<Transaction>> GetByParkMeterIdAsync(Guid parkmeterId);
         Task<IEnumerable<Transaction>> GetByStatusAsync(TransactionStatus status);
+        Task<IEnumerable<Transaction>> GetBySessionAsync(Guid sessionId);
+        Task<IEnumerable<Transaction>> GetByDateRangeAsync(
+            DateTime? from, DateTime? to);
+
     }
 }
