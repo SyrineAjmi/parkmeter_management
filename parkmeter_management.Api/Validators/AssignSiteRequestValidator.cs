@@ -1,5 +1,5 @@
 ﻿using FluentValidation;
-using parkmeter_management.Api.Controllers;
+using parkmeter_management.Api.Requests.Parkmeter;
 
 namespace parkmeter_management.Api.Validators
 {

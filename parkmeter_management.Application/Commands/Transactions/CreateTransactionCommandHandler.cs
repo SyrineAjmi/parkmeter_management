@@ -1,10 +1,8 @@
 ﻿using MediatR;
-using parkmeter_management.Application.Commands.Transactions;
 using parkmeter_management.Application.Interfaces.Repositories;
 using parkmeter_management.Application.Interfaces.Services;
 using parkmeter_management.Domain.Entities;
 using parkmeter_management.Domain.Enums;
-using static System.Collections.Specialized.BitVector32;
 
 namespace parkmeter_management.Application.Commands.Transactions
 {
@@ -13,30 +11,40 @@ namespace parkmeter_management.Application.Commands.Transactions
     {
         private readonly ITransactionRepository _transactionRepository;
         private readonly ISessionRepository _sessionRepository;
+        private readonly IParkmeterRepository _parkmeterRepository;
         private readonly INotificationService _notificationService;
-
 
         public CreateTransactionCommandHandler(
             ITransactionRepository transactionRepository,
             ISessionRepository sessionRepository,
+            IParkmeterRepository parkmeterRepository,
             INotificationService notificationService)
-
         {
             _transactionRepository = transactionRepository;
             _sessionRepository = sessionRepository;
+            _parkmeterRepository = parkmeterRepository;
             _notificationService = notificationService;
         }
-        
+
         public async Task<Guid> Handle(
             CreateTransactionCommand command, CancellationToken ct)
         {
-            // get active session from DB
+            // check parkmeter exists + IN_SERVICE
+            var parkmeter = await _parkmeterRepository
+                .GetByIdAsync(command.ParkmeterId);
+
+            if (parkmeter == null)
+                return Guid.Empty;
+
+            if (parkmeter.Status != MeterStatus.IN_SERVICE)
+                return Guid.Empty;
+
+            // get/create active session
             var activeSession = await _sessionRepository
                 .GetActiveSessionByParkmeterAsync(command.ParkmeterId);
 
             if (activeSession == null)
             {
-                // if no active sess create one
                 activeSession = new Session
                 {
                     Id = Guid.NewGuid(),
@@ -49,7 +57,7 @@ namespace parkmeter_management.Application.Commands.Transactions
                 await _sessionRepository.AddAsync(activeSession);
             }
 
-            // save transaction with current session id
+            // save transact
             var transaction = new Transaction
             {
                 Id = Guid.NewGuid(),
@@ -63,11 +71,11 @@ namespace parkmeter_management.Application.Commands.Transactions
 
             await _transactionRepository.AddAsync(transaction);
             await _notificationService.NotifyNewTransaction(
-                        command.ParkmeterId,
-                        command.Amount,
-                        command.Status.ToString());
+                command.ParkmeterId,
+                command.Amount,
+                command.Status.ToString());
 
-            // only update session totals for COMPLETED transactions
+            // update session totals : COMPLETED only
             if (command.Status == TransactionStatus.COMPLETED)
             {
                 activeSession.TotalTransactions++;
@@ -75,10 +83,7 @@ namespace parkmeter_management.Application.Commands.Transactions
                 await _sessionRepository.UpdateAsync(activeSession);
             }
 
-
-
             return transaction.Id;
         }
-
     }
 }

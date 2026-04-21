@@ -1,6 +1,8 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using parkmeter_management.Api.DTOs;
+using parkmeter_management.Api.Mappers;
+using parkmeter_management.Api.Requests.Site;
 using parkmeter_management.Application.Managers.Interfaces;
 
 namespace parkmeter_management.Api.Controllers
@@ -16,43 +18,28 @@ namespace parkmeter_management.Api.Controllers
             _siteManager = siteManager;
         }
 
+        //----------------------------------------------------------
 
-
-        //all
         [HttpGet]
         public async Task<IActionResult> GetAll()
         {
             var sites = await _siteManager.GetAllSites();
-            var dtos = sites.Select(s => new SiteDto
-            {
-                Id = s.Id,
-                Name = s.Name,
-                Address = s.Address,
-                Description = s.Description,
-            });
-            return Ok(dtos);
+            return Ok(sites.ToDtos());
+
         }
 
+        //----------------------------------------------------------
 
-
-        //all
         [HttpGet("{id}")]
         public async Task<IActionResult> GetById(Guid id)
         {
             var site = await _siteManager.GetById(id);
             if (site == null) return NotFound();
-            return Ok(new SiteDto
-            {
-                Id = site.Id,
-                Name = site.Name,
-                Address = site.Address,
-                Description = site.Description,
-                CreatedAt = site.CreatedAt,
-            });
+            return Ok(site.ToDto());
+
         }
 
-
-
+        //----------------------------------------------------------
 
         [Authorize(Roles = "GESTIONNAIRE_SYSTEME")]
         [HttpPost]
@@ -66,7 +53,7 @@ namespace parkmeter_management.Api.Controllers
             return Ok(new { Id = id, Message = "Site created successfully" });
         }
 
-
+        //----------------------------------------------------------
 
         [Authorize(Roles = "GESTIONNAIRE_SYSTEME")]
         [HttpPut("{id}")]
@@ -79,7 +66,7 @@ namespace parkmeter_management.Api.Controllers
             return Ok("Site updated successfully");
         }
 
-
+        //----------------------------------------------------------
 
         [Authorize(Roles = "GESTIONNAIRE_SYSTEME")]
         [HttpDelete("{id}")]
@@ -91,22 +78,6 @@ namespace parkmeter_management.Api.Controllers
         }
 
     }           
-
-
-    public class CreateSiteRequest
-    {
-        public string Name { get; set; } = string.Empty;
-        public string Address { get; set; } = string.Empty;
-        public string Description { get; set; } = string.Empty;
-    }
-
-
-    public class UpdateSiteRequest
-    {
-        public string Name { get; set; } = string.Empty;
-        public string Address { get; set; } = string.Empty;
-        public string Description { get; set; } = string.Empty;
-    }
 
 
 }

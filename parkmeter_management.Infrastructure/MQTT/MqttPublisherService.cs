@@ -66,7 +66,6 @@ namespace parkmeter_management.Infrastructure.Mqtt
             Console.ForegroundColor = ConsoleColor.Green;
             Console.WriteLine($"Status pushed: {parkmeterId} → {status}");
             Console.ResetColor();
-        
         }
 
         public async Task PublishNewParkmeterAsync(

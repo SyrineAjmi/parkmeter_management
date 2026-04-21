@@ -32,7 +32,7 @@
         public bool CashBoxAlertSent { get; set; } = false;
         public bool PaperAlertSent { get; set; } = false;
         public bool PaperEmptyAlertSent { get; set; } = false;
-
+        public bool PowerFailureAlertSent { get; set; } = false;
 
         // hardware/connect flags
         public bool HardwareFailure { get; set; } = false;

@@ -1,10 +1,9 @@
 ﻿using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using parkmeter_management.Api.DTOs;
-using parkmeter_management.Application.Commands.Alerts;
+using parkmeter_management.Api.Mappers;
 using parkmeter_management.Application.Managers.Interfaces;
-using parkmeter_management.Domain.Enums;
+
 
 namespace parkmeter_management.Api.Controllers
 {
@@ -21,25 +20,17 @@ namespace parkmeter_management.Api.Controllers
         }
 
 
+        //----------------------------------------------------------
+
         [Authorize(Roles = "SUPERVISEUR")]
         [HttpGet]
         public async Task<IActionResult> GetAll()
         {
             var alerts = await _alertManager.GetAllAlerts();
-            var dtos = alerts.Select(a => new AlertDto
-            {
-                Id = a.Id,
-                ParkmeterId = a.ParkmeterId,
-                Type = a.Type.ToString(),
-                Priority = a.Priority.ToString(),
-                Status = a.Status.ToString(),
-                Description = a.Description,
-                CreatedAt = a.CreatedAt,
-                ResolvedAt = a.ResolvedAt
-            });
-            return Ok(dtos);
+            return Ok(alerts.ToDtos());
         }
 
+        //----------------------------------------------------------
 
         [Authorize(Roles = "SUPERVISEUR")]
         [HttpGet("{id}")]
@@ -48,19 +39,11 @@ namespace parkmeter_management.Api.Controllers
             var alert = await _alertManager.GetById(id);
             if (alert == null) return NotFound();
 
-            var dto = new AlertDto
-            {
-                Id = alert.Id,
-                ParkmeterId = alert.ParkmeterId,
-                Type = alert.Type.ToString(),
-                Priority = alert.Priority.ToString(),
-                Status = alert.Status.ToString(),
-                Description = alert.Description,
-                CreatedAt = alert.CreatedAt,
-                ResolvedAt = alert.ResolvedAt
-            };
-            return Ok(dto);
+            return Ok(alert.ToDto());
+
         }
+
+        //----------------------------------------------------------
 
         [Authorize(Roles = "SUPERVISEUR")]
         [HttpPut("{id}/resolve")]
@@ -71,65 +54,38 @@ namespace parkmeter_management.Api.Controllers
             return Ok("Alert resolved successfully");
         }
 
+        //----------------------------------------------------------
+
         [Authorize(Roles = "SUPERVISEUR")]
         [HttpGet("filter")]
         public async Task<IActionResult> FilterByPriority(
             [FromQuery] string priority)
         {
             var alerts = await _alertManager.FilterByPriority(priority);
-            var dtos = alerts.Select(a => new AlertDto
-            {
-                Id = a.Id,
-                ParkmeterId = a.ParkmeterId,
-                Type = a.Type.ToString(),
-                Priority = a.Priority.ToString(),
-                Status = a.Status.ToString(),
-                Description = a.Description,
-                CreatedAt = a.CreatedAt,
-                ResolvedAt = a.ResolvedAt
-            });
-            return Ok(dtos);
+            return Ok(alerts.ToDtos());
+
         }
 
+        //----------------------------------------------------------
 
         [Authorize(Roles = "SUPERVISEUR")]
         [HttpGet("unresolved")]
         public async Task<IActionResult> GetUnresolved()
         {
-            var alerts = await _alertManager.GetUnresolvedAlerts(); 
-            var dtos = alerts
-                .Select(a => new AlertDto
-                {
-                    Id = a.Id,
-                    ParkmeterId = a.ParkmeterId,
-                    Type = a.Type.ToString(),
-                    Priority = a.Priority.ToString(),
-                    Status = a.Status.ToString(),
-                    Description = a.Description,
-                    CreatedAt = a.CreatedAt,
-                    ResolvedAt = a.ResolvedAt
-                });
-            return Ok(dtos);
+            var alerts = await _alertManager.GetUnresolvedAlerts();
+            return Ok(alerts.ToDtos());
+
         }
+
+        //----------------------------------------------------------
 
         [Authorize(Roles = "SUPERVISEUR")]
         [HttpGet("parkmeter/{parkmeterId}")]
         public async Task<IActionResult> GetByParkmeter(Guid parkmeterId)
         {
-            var alerts = await _alertManager.GetByParkmeter(parkmeterId); 
-            var dtos = alerts
-                .Select(a => new AlertDto
-                {
-                    Id = a.Id,
-                    ParkmeterId = a.ParkmeterId,
-                    Type = a.Type.ToString(),
-                    Priority = a.Priority.ToString(),
-                    Status = a.Status.ToString(),
-                    Description = a.Description,
-                    CreatedAt = a.CreatedAt,
-                    ResolvedAt = a.ResolvedAt
-                });
-            return Ok(dtos);
+            var alerts = await _alertManager.GetByParkmeter(parkmeterId);
+            return Ok(alerts.ToDtos());
+
         }
     }
 }

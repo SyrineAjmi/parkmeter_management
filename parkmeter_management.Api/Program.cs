@@ -37,13 +37,13 @@ builder.Services.AddValidatorsFromAssemblyContaining<Program>();
 
 
 
-// DATABASE
+// db
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlServer(
         builder.Configuration.GetConnectionString("DefaultConnection")));
 
 
-// JWT
+// jwt
 builder.Services.AddAuthentication(options =>
 {
     options.DefaultAuthenticateScheme =
@@ -71,7 +71,7 @@ builder.Services.AddAuthentication(options =>
 builder.Services.AddAuthorization();
 
 
-// SERVICES 
+// services 
 builder.Services.AddScoped<IAlertRepository, AlertRepository>();
 builder.Services.AddScoped<ITransactionRepository, TransactionRepository>();
 builder.Services.AddScoped<IParkmeterConfigurationRepository, ParkmeterConfigurationRepository>();
@@ -110,7 +110,7 @@ builder.Services.AddCors(options =>
 
 
 
-// MEDIATR
+// mediatR
 builder.Services.AddMediatR(cfg =>
     cfg.RegisterServicesFromAssembly(
         typeof(CreateAlertCommand
@@ -119,7 +119,7 @@ builder.Services.AddMediatR(cfg =>
         ).Assembly));
 
 
-// MQTT 
+// mqtt 
 builder.Services.AddSingleton<MqttBrokerService>();
 builder.Services.AddSingleton<MqttSubscriberService>();
 builder.Services.AddSingleton<IMqttPublisherService, MqttPublisherService>(); 
@@ -128,7 +128,7 @@ builder.Services.AddHostedService<MqttBackgroundService>();
 var app = builder.Build();
 
 
-// DATABASE INIT 
+// db initialisation 
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
@@ -151,6 +151,7 @@ app.UseMiddleware<GlobalExceptionMiddleware>();
 app.UseCors("AllowUI");   
 app.UseAuthentication();
 app.UseAuthorization();
+app.UseMiddleware<ActiveUserMiddleware>(); 
 app.MapControllers();
 app.MapHub<ParkMeterHub>("/hubs/parkmeter");
 

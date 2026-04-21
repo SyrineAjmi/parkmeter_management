@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Identity.Data;
+using Microsoft.AspNetCore.Mvc;
 using parkmeter_management.Application.Managers.Interfaces;
 
 namespace parkmeter_management.Api.Controllers
@@ -13,6 +14,9 @@ namespace parkmeter_management.Api.Controllers
         {
             _authManager = authManager;
         }
+
+
+        //----------------------------------------------------------
 
         [HttpPost("login")]
         public async Task<IActionResult> Login(
@@ -33,9 +37,4 @@ namespace parkmeter_management.Api.Controllers
         }
     }
 
-    public class LoginRequest
-    {
-        public string Email { get; set; } = string.Empty;
-        public string Password { get; set; } = string.Empty;
-    }
 }

@@ -1,9 +1,12 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using parkmeter_management.Api.Mappers;
+using parkmeter_management.Api.Requests.Configuration;
 using parkmeter_management.Application.Managers.Interfaces;
 
 namespace parkmeter_management.Api.Controllers
 {
+
     [ApiController]
     [Route("api/[controller]")]
     public class ParkmeterConfigurationController : ControllerBase
@@ -17,19 +20,18 @@ namespace parkmeter_management.Api.Controllers
         }
 
 
+        //----------------------------------------------------------
 
-        //all
         [HttpGet("{parkmeterId}")]
         public async Task<IActionResult> GetConfiguration(Guid parkmeterId)
         {
             var config = await _configurationManager
                 .GetConfiguration(parkmeterId);
             if (config == null) return NotFound();
-            return Ok(config);
+            return Ok(config.ToDto());
         }
 
-
-
+        //----------------------------------------------------------
 
         [Authorize(Roles = "AGENT_INSTALLATION")]
         [HttpPost("create")]
@@ -43,8 +45,7 @@ namespace parkmeter_management.Api.Controllers
             return Ok("Config created and sent to parkmeter");
         }
 
-
-
+        //----------------------------------------------------------
 
         [Authorize(Roles = "AGENT_INSTALLATION")]
         [HttpPut("update")]
@@ -59,8 +60,7 @@ namespace parkmeter_management.Api.Controllers
             return Ok("Config updated and sent to parkmeter");
         }
 
-
-
+        //----------------------------------------------------------
 
         [Authorize(Roles = "GESTIONNAIRE_SYSTEME")]
         [HttpDelete("{parkmeterId}")]
@@ -71,8 +71,7 @@ namespace parkmeter_management.Api.Controllers
             return Ok("Config deleted");
         }
 
-
-
+        //----------------------------------------------------------
 
         [Authorize(Roles = "AGENT_INSTALLATION")]
         [HttpPost("{parkmeterId}/apply")]
@@ -85,21 +84,4 @@ namespace parkmeter_management.Api.Controllers
         }
     }
 
-
-
-
-    // Request models
-    public class CreateConfigRequest
-    {
-        public Guid ParkmeterId { get; set; }
-        public decimal PricePerHour { get; set; }
-        public int MaxDuration { get; set; }
-    }
-
-    public class UpdateConfigRequest
-    {
-        public Guid ParkmeterId { get; set; }
-        public decimal PricePerHour { get; set; }
-        public int MaxDuration { get; set; }
-    }
 }

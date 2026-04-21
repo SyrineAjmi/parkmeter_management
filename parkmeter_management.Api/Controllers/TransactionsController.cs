@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using parkmeter_management.Api.DTOs;
+using parkmeter_management.Api.Mappers;
 using parkmeter_management.Application.Managers.Interfaces;
 
 namespace parkmeter_management.Api.Controllers
@@ -16,26 +17,18 @@ namespace parkmeter_management.Api.Controllers
             _transactionManager = transactionManager;
         }
 
+        //----------------------------------------------------------
 
         [Authorize(Roles = "RESPONSABLE_FINANCIER")]
         [HttpGet]
         public async Task<IActionResult> GetAll()
         {
             var transactions = await _transactionManager.GetAllTransactions();
-            var dtos = transactions.Select(t => new TransactionDto
-            {
-                Id = t.Id,
-                ParkmeterId = t.ParkmeterId,
-                SessionId = t.SessionId,
-                Amount = t.Amount,
-                Status = t.Status.ToString(),
-                CreatedAt = t.CreatedAt
-            });
-            return Ok(dtos);
+            return Ok(transactions.ToDtos());
+
         }
 
-
-
+        //----------------------------------------------------------
 
         [Authorize(Roles = "RESPONSABLE_FINANCIER")]
         [HttpGet("parkmeter/{parkmeterID}")]
@@ -43,20 +36,12 @@ namespace parkmeter_management.Api.Controllers
         {
             var transactions = await _transactionManager
                 .GetByParkmeter(parkmeterID);
-            var dtos = transactions.Select(t => new TransactionDto
-            {
-                Id = t.Id,
-                ParkmeterId = t.ParkmeterId,
-                SessionId = t.SessionId,
-                Amount = t.Amount,
-                Status = t.Status.ToString(),
-                CreatedAt = t.CreatedAt
-            });
-            return Ok(dtos);
+            return Ok(transactions.ToDtos());
+
         }
 
 
-
+        //----------------------------------------------------------
 
         [Authorize(Roles = "RESPONSABLE_FINANCIER")]
         [HttpGet("filter")]
@@ -65,19 +50,11 @@ namespace parkmeter_management.Api.Controllers
         {
             var transactions = await _transactionManager
                 .FilterByStatus(status);
-            var dtos = transactions.Select(t => new TransactionDto
-            {
-                Id = t.Id,
-                ParkmeterId = t.ParkmeterId,
-                SessionId = t.SessionId,
-                Amount = t.Amount,
-                Duration = t.Duration,
-                Status = t.Status.ToString(),
-                CreatedAt = t.CreatedAt
-            });
-            return Ok(dtos);
+            return Ok(transactions.ToDtos());
+
         }
 
+        //----------------------------------------------------------
 
         [Authorize(Roles = "RESPONSABLE_FINANCIER")]
         [HttpGet("session/{sessionId}")]
@@ -86,21 +63,11 @@ namespace parkmeter_management.Api.Controllers
             var transactions = await _transactionManager
                 .GetBySession(sessionId);
 
-            var dtos = transactions
-                .Select(t => new TransactionDto
-                {
-                    Id = t.Id,
-                    ParkmeterId = t.ParkmeterId,
-                    SessionId = t.SessionId,
-                    Amount = t.Amount,
-                    Duration = t.Duration,
-                    Status = t.Status.ToString(),
-                    CreatedAt = t.CreatedAt
-                });
+            return Ok(transactions.ToDtos());
 
-            return Ok(dtos);
         }
 
+        //----------------------------------------------------------
 
         [Authorize(Roles = "RESPONSABLE_FINANCIER")]
         [HttpGet("filter/date")]
@@ -111,18 +78,8 @@ namespace parkmeter_management.Api.Controllers
             var transactions = await _transactionManager
                 .GetByDateRange(from, to);
 
-            var dtos = transactions.Select(t => new TransactionDto
-            {
-                Id = t.Id,
-                ParkmeterId = t.ParkmeterId,
-                SessionId = t.SessionId,
-                Amount = t.Amount,
-                Duration = t.Duration,
-                Status = t.Status.ToString(),
-                CreatedAt = t.CreatedAt
-            });
+            return Ok(transactions.ToDtos());
 
-            return Ok(dtos);
         }
 
     }

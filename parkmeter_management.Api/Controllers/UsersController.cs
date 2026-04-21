@@ -1,8 +1,8 @@
-﻿using FluentValidation;
-using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Identity;
+﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using parkmeter_management.Api.DTOs;
+using parkmeter_management.Api.Mappers;
+using parkmeter_management.Api.Requests.User;
 using parkmeter_management.Application.Managers.Interfaces;
 using parkmeter_management.Domain.Enums;
 
@@ -19,26 +19,18 @@ namespace parkmeter_management.Api.Controllers
             _userManager = userManager;
         }
 
-
+        //----------------------------------------------------------
 
         [Authorize(Roles = "GESTIONNAIRE_SYSTEME")]
         [HttpGet]
         public async Task<IActionResult> GetAll()
         {
             var users = await _userManager.GetAllUsers();
-            var dtos = users.Select(u => new UserDto
-            {
-                Id = u.Id,
-                Name = u.Name,
-                Email = u.Email,
-                Role = u.Role.ToString(),
-                IsActive = u.IsActive,
-                CreatedAt = u.CreatedAt
-            });
-            return Ok(dtos);
+            return Ok(users.ToDtos());
+
         }
 
-
+        //----------------------------------------------------------
 
         [Authorize(Roles = "GESTIONNAIRE_SYSTEME")]
         [HttpGet("{id}")]
@@ -47,33 +39,32 @@ namespace parkmeter_management.Api.Controllers
             var user = await _userManager.GetById(id);
             if (user == null) return NotFound();
 
-            return Ok(new UserDto
-            {
-                Id = user.Id,
-                Name = user.Name,
-                Email = user.Email,
-                Role = user.Role.ToString(),
-                IsActive = user.IsActive,
-                CreatedAt = user.CreatedAt
-            });
+            return Ok(user.ToDto());
+
         }
 
-
+        //----------------------------------------------------------
 
         [Authorize(Roles = "GESTIONNAIRE_SYSTEME")]
         [HttpPost]
         public async Task<IActionResult> Create(
             [FromBody] CreateUserRequest request)
         {
+            if (!Enum.TryParse<Role>(
+                request.Role, true, out var role))
+                return BadRequest("Invalid role value");
             try
             {
-                Enum.TryParse<Role>(request.Role, true, out var role);
                 var id = await _userManager.CreateUser(
                     request.Name,
                     request.Email,
                     request.Password,
                     role);
-                return Ok(new { Id = id, Message = "User created successfully" });
+                return Ok(new
+                {
+                    Id = id,
+                    Message = "User created successfully"
+                });
             }
             catch (Exception ex)
             {
@@ -81,7 +72,7 @@ namespace parkmeter_management.Api.Controllers
             }
         }
 
-
+        //----------------------------------------------------------
 
         [Authorize(Roles = "GESTIONNAIRE_SYSTEME")]
         [HttpPut("{id}/change-password")]
@@ -95,11 +86,10 @@ namespace parkmeter_management.Api.Controllers
                     message = "Les mots de passe ne correspondent pas"
                 });
 
-            var result = await _userManager
-                .ChangePassword(
-                    id,
-                    request.CurrentPassword,
-                    request.NewPassword);
+            var result = await _userManager.ChangePassword(
+                id,
+                request.CurrentPassword,
+                request.NewPassword);
 
             if (!result)
                 return BadRequest(new
@@ -113,21 +103,28 @@ namespace parkmeter_management.Api.Controllers
             });
         }
 
-
+        //----------------------------------------------------------
 
         [Authorize(Roles = "GESTIONNAIRE_SYSTEME")]
         [HttpPut("{id}")]
         public async Task<IActionResult> Update(
             Guid id, [FromBody] UpdateUserRequest request)
         {
-            Enum.TryParse<Role>(request.Role, true, out var role);
+            if (!Enum.TryParse<Role>(
+                request.Role, true, out var role))
+                return BadRequest("Invalid role value");
+
             var result = await _userManager.UpdateUser(
-                id, request.Name, request.Email, role, request.IsActive);
+                id,
+                request.Name,
+                request.Email,
+                role,
+                request.IsActive);
             if (!result) return NotFound();
             return Ok("User updated successfully");
         }
 
-
+        //----------------------------------------------------------
 
         [Authorize(Roles = "GESTIONNAIRE_SYSTEME")]
         [HttpDelete("{id}")]
@@ -139,24 +136,4 @@ namespace parkmeter_management.Api.Controllers
         }
     }
 
-    public class CreateUserRequest
-    {
-        public string Name { get; set; } = string.Empty;
-        public string Email { get; set; } = string.Empty;
-        public string Password { get; set; } = string.Empty;
-        public string Role { get; set; } = string.Empty;
-    }
-    public class UpdateUserRequest
-    {
-        public string Name { get; set; } = string.Empty;
-        public string Email { get; set; } = string.Empty;
-        public string Role { get; set; } = string.Empty;
-        public bool IsActive { get; set; }
-    }
-    public class ChangePasswordRequest
-    {
-        public string CurrentPassword { get; set; } = string.Empty;
-        public string NewPassword { get; set; } = string.Empty;
-        public string ConfirmPassword { get; set; } = string.Empty;
-    }
 }

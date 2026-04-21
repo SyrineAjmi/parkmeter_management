@@ -54,7 +54,7 @@ namespace parkmeter_management.Infrastructure.Persistence
                 entity.Property(e => e.Status).HasConversion<string>();
             });
 
-            // Session (with Status )
+            // Session (with Status)
             modelBuilder.Entity<Session>(entity =>
             {
                 entity.HasKey(e => e.Id);

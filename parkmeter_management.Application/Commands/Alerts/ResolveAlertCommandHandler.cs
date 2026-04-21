@@ -1,7 +1,6 @@
 ﻿using MediatR;
 using parkmeter_management.Application.Interfaces.Repositories;
 using parkmeter_management.Application.Interfaces.Services;
-using parkmeter_management.Domain.Entities;
 using parkmeter_management.Domain.Enums;
 
 namespace parkmeter_management.Application.Commands.Alerts
@@ -28,17 +27,23 @@ namespace parkmeter_management.Application.Commands.Alerts
         }
 
         public async Task<bool> Handle(
-        ResolveAlertCommand request, CancellationToken ct)
+            ResolveAlertCommand request, CancellationToken ct)
         {
-            var alert = await _alertRepository.GetByIdAsync(request.AlertId);
+            var alert = await _alertRepository
+                .GetByIdAsync(request.AlertId);
             if (alert == null) return false;
 
-            // mark as resolved
+            // mark resolved
             alert.Status = AlertStatus.RESOLVED;
             alert.ResolvedAt = DateTime.UtcNow;
             await _alertRepository.UpdateAsync(alert);
 
-            //  checkng if status should revert 
+            // notify front alert is resolved 
+            await _notificationService.NotifyAlertResolved(
+                request.AlertId,
+                alert.ParkmeterId);
+
+            // check if status should revert
             var remaining = await _alertRepository
                 .GetByParkmeterAsync(alert.ParkmeterId);
 
@@ -49,6 +54,7 @@ namespace parkmeter_management.Application.Commands.Alerts
                  a.Type == AlertType.DOOR_OPEN ||
                  a.Type == AlertType.HARDWARE_FAILURE));
 
+            // revert to IN_SERVICE if not blocked
             if (!stillBlocked)
             {
                 var parkmeter = await _parkmeterRepository
@@ -62,13 +68,11 @@ namespace parkmeter_management.Application.Commands.Alerts
                     await _mqttPublisher.PublishStatusAsync(
                         alert.ParkmeterId,
                         MeterStatus.IN_SERVICE.ToString());
-                    await _notificationService.NotifyAlertResolved(
-                            request.AlertId,
-                            alert.ParkmeterId);
 
-                    //Console.ForegroundColor = ConsoleColor.Green;
-                    //Console.WriteLine($" {parkmeter.SerialNumber} → IN_SERVICE");
-                    //Console.ResetColor();
+                    // notify front status changed
+                    await _notificationService.NotifyStatusChanged(
+                        alert.ParkmeterId,
+                        MeterStatus.IN_SERVICE.ToString());
                 }
             }
 

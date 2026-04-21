@@ -58,5 +58,15 @@ namespace parkmeter_management.Infrastructure.Persistence.Repositories
                 .OrderByDescending(a => a.CreatedAt)
                 .ToListAsync();
         }
+
+        public async Task<IEnumerable<Alert>> GetUnresolvedByParkmeterAsync(
+        Guid parkmeterId)
+        {
+            return await _context.Alerts
+                .Where(a => a.ParkmeterId == parkmeterId
+                         && a.Status == AlertStatus.NOT_RESOLVED)
+                .OrderByDescending(a => a.CreatedAt)
+                .ToListAsync();
+        }
     }
 }

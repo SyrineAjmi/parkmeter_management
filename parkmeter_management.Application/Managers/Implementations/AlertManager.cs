@@ -38,5 +38,11 @@ namespace parkmeter_management.Application.Managers.Implementations
         public async Task<List<Alert>> GetByParkmeter(Guid parkmeterId)
             => await _mediator.Send(
                 new GetAlertsByParkmeterQuery { ParkmeterID = parkmeterId });
+
+        public async Task<List<Alert>> GetUnresolvedByParkmeter(
+            Guid parkmeterID)
+            => await _mediator.Send(
+                new GetUnresolvedAlertsByParkmeterQuery
+                { ParkmeterID = parkmeterID });
     }
 }

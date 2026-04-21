@@ -34,12 +34,20 @@ namespace parkmeter_management.Application.Commands.Alerts
         public async Task<Guid> Handle(
             CreateAlertCommand command, CancellationToken ct)
         {
-            //  get parkmeter 
+            // get parkmeter
             var parkmeter = await _parkmeterRepository
                 .GetByIdAsync(command.ParkmeterId);
             if (parkmeter == null) return Guid.Empty;
 
-            //  op alerts 
+            // check duplicates
+            var existingAlerts = await _alertRepository
+                .GetByParkmeterAsync(command.ParkmeterId);
+            var isDuplicate = existingAlerts.Any(a =>
+                a.Type == command.Type &&
+                a.Status == AlertStatus.NOT_RESOLVED);
+            if (isDuplicate) return Guid.Empty;
+
+            // IN_SERVICE : operational alerts only 
             var operationalAlerts =
                 AlertType.CASH_BOX_WARN |
                 AlertType.CASH_BOX_FULL |
@@ -49,22 +57,14 @@ namespace parkmeter_management.Application.Commands.Alerts
             if ((command.Type & operationalAlerts) != AlertType.NONE
                 && parkmeter.Status != MeterStatus.IN_SERVICE
                 && parkmeter.Status != MeterStatus.TEMPORARILY_UNAVAILABLE)
-            {
-                //Console.ForegroundColor = ConsoleColor.Yellow;
-                //Console.WriteLine($" Alert {command.Type} ignored — " +
-                //    $"{parkmeter.SerialNumber} is {parkmeter.Status}");
-                //Console.ResetColor();
                 return Guid.Empty;
-            }
 
-
-
-            //  blocking alerts : TEMPORARILY_UNAVAILABLE
+            // blocking alerts : TEMPORARILY_UNAVAILABLE
             var blockingAlerts =
                 AlertType.CASH_BOX_FULL |
                 AlertType.PAPER_EMPTY |
                 AlertType.DOOR_OPEN |
-                AlertType.HARDWARE_FAILURE; 
+                AlertType.HARDWARE_FAILURE;
 
             if ((command.Type & blockingAlerts) != AlertType.NONE
                 && parkmeter.Status == MeterStatus.IN_SERVICE)
@@ -74,14 +74,9 @@ namespace parkmeter_management.Application.Commands.Alerts
                 await _mqttPublisher.PublishStatusAsync(
                     command.ParkmeterId,
                     MeterStatus.TEMPORARILY_UNAVAILABLE.ToString());
-
-                //Console.ForegroundColor = ConsoleColor.Yellow;
-                //Console.WriteLine($"{parkmeter.SerialNumber} → " +
-                //    $"TEMPORARILY_UNAVAILABLE ({command.Type})");
-                //Console.ResetColor();
             }
 
-            // powr fail :  OUT_OF_SERVICE 
+            // POWER_FAILURE : OUT_OF_SERVICE
             if (command.Type.HasFlag(AlertType.POWER_FAILURE))
             {
                 parkmeter.Status = MeterStatus.OUT_OF_SERVICE;
@@ -89,14 +84,9 @@ namespace parkmeter_management.Application.Commands.Alerts
                 await _mqttPublisher.PublishStatusAsync(
                     command.ParkmeterId,
                     MeterStatus.OUT_OF_SERVICE.ToString());
-
-                //Console.ForegroundColor = ConsoleColor.Red;
-                //Console.WriteLine($" {parkmeter.SerialNumber} : OUT_OF_SERVICE");
-                //Console.ResetColor();
             }
 
-
-            // save alert
+            // save alert 
             var alert = new Alert
             {
                 Id = Guid.NewGuid(),
@@ -110,9 +100,10 @@ namespace parkmeter_management.Application.Commands.Alerts
 
             await _alertRepository.AddAsync(alert);
             await _notificationService.NotifyNewAlert(
-                                  command.ParkmeterId,
-                                  command.Type.ToString(),
-                                  AlertPriorityHelper.GetPriority(command.Type).ToString());
+                command.ParkmeterId,
+                command.Type.ToString(),
+                AlertPriorityHelper.GetPriority(command.Type).ToString());
+
             return alert.Id;
         }
     }

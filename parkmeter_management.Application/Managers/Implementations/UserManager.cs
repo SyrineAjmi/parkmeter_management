@@ -71,12 +71,12 @@ namespace parkmeter_management.Application.Managers.Implementations
             var user = await _userRepository.GetByIdAsync(userId);
             if (user == null) return false;
 
-            // Verify current password
+            // verify current password
             var isValid = _passwordHasher
                 .Verify(currentPassword, user.PasswordHash);
             if (!isValid) return false;
 
-            // Hash new password
+            // hash new password
             user.PasswordHash = _passwordHasher.Hash(newPassword);
             await _userRepository.UpdateAsync(user);
             return true;

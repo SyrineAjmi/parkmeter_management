@@ -19,7 +19,7 @@ var handler = new HttpClientHandler
 
 var http = new HttpClient(handler)
 {
-    BaseAddress = new Uri("https://localhost:7016/")
+    BaseAddress = new Uri("https://localhost:7016/") 
 };
 
 
@@ -35,8 +35,8 @@ var parkmeters = await FetchParkmetersAsync(http);
 if (parkmeters.Count == 0) return;
 
 var runningCount = 0;
-var simulators = new List<ParkMeterSimulator>();
-var simTasks = new List<Task>();
+var simulators = new Dictionary<Guid, ParkMeterSimulator>();
+var simTasks = new Dictionary<Guid, Task>();
 var cts = new CancellationTokenSource();
 
 _ = StartNewParkmeterListenerAsync(http, parkmeters, cts.Token);
@@ -46,33 +46,31 @@ PrintDemoMenu(parkmeters, runningCount, simulators);
 // ── main loop ─────────────────────────────────────────
 while (true)
 {
-        //auto-detect offline parkmeters
-        for (int i = simulators.Count - 1; i >= 0; i--)
-        {
-            if (simulators[i].IsOffline && !simulators[i].IsConnectionLost)
-            {
-                Console.ForegroundColor = ConsoleColor.Red;
-                Console.WriteLine($"\n[POWER] {parkmeters[i].SerialNumber} " +
-                    $"permanently offline — press [+] to restart");
-                Console.ResetColor();
-                simulators.RemoveAt(i);
-                simTasks.RemoveAt(i);
-                runningCount = simulators.Count;
-                PrintDemoMenu(parkmeters, runningCount, simulators);
-            }
-        }
+    // Auto-detect offline parkmeters
+    foreach (var pm in parkmeters.ToList())
+    {
+        if (!simulators.ContainsKey(pm.Id)) continue;
 
-        if (!Console.KeyAvailable)
+        var sim = simulators[pm.Id];
+        if (sim.IsOffline && !sim.IsConnectionLost)
+        {
+            Console.ForegroundColor = ConsoleColor.Red;
+            Console.WriteLine($"\n[POWER] {pm.SerialNumber} " +
+                $"permanently offline — press [+] to restart");
+            Console.ResetColor();
+
+            simulators.Remove(pm.Id);
+            simTasks.Remove(pm.Id);
+            runningCount = simulators.Count;
+            PrintDemoMenu(parkmeters, runningCount, simulators);
+        }
+    }
+
+    if (!Console.KeyAvailable)
         {
             await Task.Delay(100);
             continue;
         }
-
-        if (!Console.KeyAvailable)
-    {
-        await Task.Delay(100);
-        continue;
-    }
 
     var key = Console.ReadKey(intercept: true).Key;
 
@@ -80,7 +78,7 @@ while (true)
     if (key == ConsoleKey.M) { PrintDemoMenu(parkmeters, runningCount, simulators); continue; }
     if (key == ConsoleKey.S)
     {
-        PrintSimulatorStatus(parkmeters, simulators, runningCount,http);
+        await PrintSimulatorStatus(parkmeters, simulators, runningCount,http);
         continue;
     }
     if (key == ConsoleKey.G)
@@ -88,7 +86,7 @@ while (true)
         if (simulators.Count == 0)
         { LogWarning("No parkmeters running!"); continue; }
         await RunAgentModeAsync(parkmeters, simulators, runningCount);
-        PrintDemoMenu(parkmeters, runningCount, simulators);
+        //PrintDemoMenu(parkmeters, runningCount, simulators);
         continue;
     }
     if (key == ConsoleKey.T)
@@ -96,65 +94,101 @@ while (true)
         if (simulators.Count == 0)
         { LogWarning("No parkmeters running!"); continue; }
         await RunTestModeAsync(parkmeters, simulators, runningCount);
-        PrintDemoMenu(parkmeters, runningCount, simulators);
+        //PrintDemoMenu(parkmeters, runningCount, simulators);
         continue;
     }
     if (key == ConsoleKey.OemPlus
      || key == ConsoleKey.Add) { await PowerOnAsync(http, parkmeters, simulators, simTasks, cts); runningCount = simulators.Count; 
-        PrintDemoMenu(parkmeters, runningCount, simulators); continue; }
+        //PrintDemoMenu(parkmeters, runningCount, simulators); 
+        continue; }
     if (key == ConsoleKey.OemMinus
      || key == ConsoleKey.Subtract) { await PowerOffAsync(parkmeters, simulators, simTasks); runningCount = simulators.Count; 
-        PrintDemoMenu(parkmeters, runningCount,simulators); continue; }
+        //PrintDemoMenu(parkmeters, runningCount,simulators);
+        continue; } 
 }
 
 
 // ── shutting down ──────────────────────────────────────────
 async Task ShutdownAsync(
-    CancellationTokenSource cts, List<Task> tasks)
+    CancellationTokenSource cts,
+    Dictionary<Guid, Task> tasks) 
 {
     Console.WriteLine("\nShutting down all parkmeters...");
     cts.Cancel();
     if (tasks.Count == 0) return;
-    try { await Task.WhenAll(tasks); }
+    try { await Task.WhenAll(tasks.Values); } 
     catch (OperationCanceledException)
     { Console.WriteLine("All parkmeters stopped."); }
 }
-
 
 // ── powering on the parkmeters ──────────────────────────────────────
 async Task PowerOnAsync(
     HttpClient http,
     List<ParkMeterInfo> pms,
-    List<ParkMeterSimulator> sims,
-    List<Task> tasks,
+    Dictionary<Guid, ParkMeterSimulator> sims,
+    Dictionary<Guid, Task> tasks,
     CancellationTokenSource cts)
 {
-    var currentCount = sims.Count;
-    if (currentCount >= pms.Count)
-    { LogWarning($"All {pms.Count} parkmeters already running!"); return; } 
+    // find next parkmeter NOT already running
+    var pm = pms.FirstOrDefault(p => !sims.ContainsKey(p.Id));
+    if (pm == null)
+    { LogWarning($"All {pms.Count} parkmeters already running!"); return; }
 
-    var pm = pms[currentCount];
     var config = await FetchConfigAsync(http, pm.Id);
+    var activeAlerts = await FetchActiveAlertsAsync(http, pm.Id);
+    var freshPm = await FetchParkmeterByIdAsync(http, pm.Id);
+    var currentStatus = freshPm?.Status ?? pm.Status;
+
+    if (currentStatus == "OUT_OF_SERVICE")
+    {
+        LogWarning($"{pm.SerialNumber} is OUT_OF_SERVICE — " +
+            $"activate it first!");
+        return;
+    }
+
+    if (freshPm != null)
+    {
+        var idx = pms.FindIndex(p => p.Id == pm.Id);
+        if (idx >= 0) pms[idx] = freshPm;
+    }
+
+    var isBlocked = freshPm?.Status == "TEMPORARILY_UNAVAILABLE"
+             || freshPm?.Status == "OUT_OF_SERVICE";
 
     var state = new ParkMeterState
     {
         Id = pm.Id,
         SerialNumber = pm.SerialNumber,
-        Status = pm.Status,
+        Status = freshPm?.Status ?? pm.Status,
         PricePerHour = config?.PricePerHour ?? 0,
         MaxDuration = config?.MaxDuration ?? 0,
         HasConfig = config != null,
         MinTickDelayMs = 15000,
         MaxTickDelayMs = 30000,
         CashFillPerTick = 8,
-        PaperUsePerTick = 3
+        PaperUsePerTick = 3,
+
+        HardwareFailure = activeAlerts.Contains("HARDWARE_FAILURE"),
+        DoorOpen = activeAlerts.Contains("DOOR_OPEN"),
+        CashBoxWarnSent = activeAlerts.Contains("CASH_BOX_WARN")
+                           || activeAlerts.Contains("CASH_BOX_FULL"),
+        CashBoxAlertSent = activeAlerts.Contains("CASH_BOX_FULL"),
+        PaperAlertSent = activeAlerts.Contains("PAPER_LOW")
+                           || activeAlerts.Contains("PAPER_EMPTY"),
+        PaperEmptyAlertSent = activeAlerts.Contains("PAPER_EMPTY"),
+
+        CashLevel = activeAlerts.Contains("CASH_BOX_FULL") ? 100 :
+                     activeAlerts.Contains("CASH_BOX_WARN") ? 85 : 0,
+        PaperLevel = activeAlerts.Contains("PAPER_EMPTY") ? 0 :
+                     activeAlerts.Contains("PAPER_LOW") ? 15 : 100
     };
 
     var simulator = new ParkMeterSimulator(state);
-    sims.Add(simulator);
-    tasks.Add(simulator.RunAsync(cts.Token));
+    sims[pm.Id] = simulator;
+    tasks[pm.Id] = simulator.RunAsync(cts.Token);
 
-    LogDemo($"[+] {pm.SerialNumber} powered ON | Status: {state.Status} | " +
+    LogDemo($"[+] {pm.SerialNumber} powered ON | " +
+        $"Status: {state.Status} | " +
         $"Config: {(config != null ? $"{state.PricePerHour} DT/h | Max: {state.MaxDuration} min" : "none")}");
 }
 
@@ -162,20 +196,22 @@ async Task PowerOnAsync(
 // ── powering off the parkmeters ──────────────────────────────────
 async Task PowerOffAsync(
     List<ParkMeterInfo> pms,
-    List<ParkMeterSimulator> sims,
-    List<Task> tasks)
+    Dictionary<Guid, ParkMeterSimulator> sims,
+    Dictionary<Guid, Task> tasks)
 {
     if (sims.Count == 0)
     { LogWarning("No parkmeters running!"); return; }
 
-    var last = sims.Count - 1;
-    await sims[last].StopAsync();
-    LogDemo($"[-] {pms[last].SerialNumber} powered OFF");
+    // power off last added simulator
+    var lastPm = pms.LastOrDefault(p => sims.ContainsKey(p.Id));
+    if (lastPm == null) return;
 
-    sims.RemoveAt(last);
-    tasks.RemoveAt(last);
+    await sims[lastPm.Id].StopAsync();
+    LogDemo($"[-] {lastPm.SerialNumber} powered OFF");
+
+    sims.Remove(lastPm.Id);
+    tasks.Remove(lastPm.Id);
 }
-
 
 // ── listen to new added parkmeters ────────────────────────────
 async Task StartNewParkmeterListenerAsync(
@@ -277,7 +313,7 @@ async Task<ParkMeterConfigInfo?> FetchConfigAsync(
 
 async Task RunTestModeAsync(
     List<ParkMeterInfo> pms,
-    List<ParkMeterSimulator> sims,
+    Dictionary<Guid, ParkMeterSimulator> sims,
     int running)
 {
     
@@ -295,7 +331,7 @@ async Task RunTestModeAsync(
         AlertType.CASH_BOX_REMOVED;
 
     // select source ─────────────────────────
-    PrintTestSourceMenu(pms, running);
+    PrintTestSourceMenu(pms, sims);
     var sourceKey = Console.ReadKey(intercept: true).Key;
     Console.WriteLine();
 
@@ -303,19 +339,23 @@ async Task RunTestModeAsync(
 
     if (sourceKey == ConsoleKey.A)
     {
-        targets = sims.Select((s, i) => (s, pms[i].SerialNumber)).ToList();
-        Console.ForegroundColor = ConsoleColor.Cyan;
+        targets = pms
+            .Where(p => sims.ContainsKey(p.Id))
+            .Select(p => (sims[p.Id], p.SerialNumber))
+            .ToList(); Console.ForegroundColor = ConsoleColor.Cyan;
         Console.WriteLine("  → ALL parkmeters selected");
         Console.ResetColor();
     }
     else
     {
+        var runningPms = pms.Where(p => sims.ContainsKey(p.Id)).ToList();
         var idx = GetParkmeterIndex(sourceKey);
-        if (idx == null || idx >= sims.Count)
+        if (idx == null || idx >= runningPms.Count)
         { LogWarning("Invalid selection."); return; }
-        targets.Add((sims[idx.Value], pms[idx.Value].SerialNumber));
+        var selectedPm = runningPms[idx.Value];
+        targets.Add((sims[selectedPm.Id], selectedPm.SerialNumber));
         Console.ForegroundColor = ConsoleColor.Cyan;
-        Console.WriteLine($"  → {pms[idx.Value].SerialNumber} selected");
+        Console.WriteLine($"  → {selectedPm.SerialNumber} selected");
         Console.ResetColor();
     }
 
@@ -366,8 +406,6 @@ async Task RunTestModeAsync(
     Console.ResetColor();
 }
 
-    //
-
     async Task<AlertType> SelectAlertsAsync()
 {
     var available = new Dictionary<ConsoleKey,
@@ -382,6 +420,7 @@ async Task RunTestModeAsync(
         [ConsoleKey.D7] = (AlertType.POWER_FAILURE, "POWER_FAILURE"),
         [ConsoleKey.D8] = (AlertType.CONNECTION_LOST, "CONNECTION_LOST"),
     };
+
 
     var selected = new HashSet<AlertType>();
 
@@ -400,7 +439,7 @@ async Task RunTestModeAsync(
             Console.ForegroundColor = isSelected
                 ? ConsoleColor.Green
                 : ConsoleColor.Magenta;
-            var indicator = isSelected ? "✅" : "  ";
+            var indicator = isSelected ? "°" : "  ";
             Console.WriteLine($"  {indicator} [{kvp.Key.ToString().Replace("D", "")}] {kvp.Value.name}");
         }
 
@@ -453,20 +492,22 @@ async Task RunTestModeAsync(
     }
 }
 
-// ── physical actions of the agent ─────────────────────────────────────
+// physical actions (real)
 async Task RunAgentModeAsync(
     List<ParkMeterInfo> pms,
-    List<ParkMeterSimulator> sims,
+    Dictionary<Guid, ParkMeterSimulator> sims,
     int running)
 {
-    // ── Step 1: Select parkmeter ──────────────────────
     Console.ForegroundColor = ConsoleColor.DarkCyan;
     Console.WriteLine("\n════════════════════════════════════════");
     Console.WriteLine("  AGENT MODE");
     Console.WriteLine("════════════════════════════════════════");
-    for (int i = 0; i < running; i++)
-        Console.WriteLine($"    [{i + 1}] {pms[i].SerialNumber} " +
-            $"({sims[i].Status})");
+
+    // show only running parkmeters
+    var runningPms = pms.Where(p => sims.ContainsKey(p.Id)).ToList();
+    for (int i = 0; i < runningPms.Count; i++)
+        Console.WriteLine($"    [{i + 1}] {runningPms[i].SerialNumber} " +
+            $"({sims[runningPms[i].Id].Status})");
     Console.WriteLine("────────────────────────────────────────");
     Console.ResetColor();
 
@@ -474,14 +515,16 @@ async Task RunAgentModeAsync(
     Console.WriteLine();
 
     var idx = GetParkmeterIndex(pmKey);
-    if (idx == null || idx >= sims.Count)
+    if (idx == null || idx >= runningPms.Count)
     { LogWarning("Invalid selection."); return; }
 
+    var selectedPm = runningPms[idx.Value];
+    var selectedSim = sims[selectedPm.Id];
+
     Console.ForegroundColor = ConsoleColor.Cyan;
-    Console.WriteLine($"  → {pms[idx.Value].SerialNumber} selected");
+    Console.WriteLine($"  → {selectedPm.SerialNumber} selected");
     Console.ResetColor();
 
-    // ── Step 2: Select action ─────────────────────────
     Console.ForegroundColor = ConsoleColor.DarkCyan;
     Console.WriteLine("────────────────────────────────────────");
     Console.WriteLine("  Select action:");
@@ -491,22 +534,22 @@ async Task RunAgentModeAsync(
     Console.WriteLine("────────────────────────────────────────");
     Console.ResetColor();
 
-    var actionKey = Console.ReadKey(intercept: true).Key; 
+    var actionKey = Console.ReadKey(intercept: true).Key;
     Console.WriteLine();
 
-    switch (actionKey) 
+    switch (actionKey)
     {
         case ConsoleKey.E:
-            await sims[idx.Value].EmptyCashBoxAsync();
-            LogDemo($"Cash box emptied on {pms[idx.Value].SerialNumber}");
+            await selectedSim.EmptyCashBoxAsync();
+            LogDemo($"Cash box emptied on {selectedPm.SerialNumber}");
             break;
         case ConsoleKey.F:
-            await sims[idx.Value].RefillPaperAsync();
-            LogDemo($"Paper refilled on {pms[idx.Value].SerialNumber}");
+            await selectedSim.RefillPaperAsync();
+            LogDemo($"Paper refilled on {selectedPm.SerialNumber}");
             break;
         case ConsoleKey.D:
-            await sims[idx.Value].CloseDoorAsync();
-            LogDemo($"Door closed on {pms[idx.Value].SerialNumber}");
+            await selectedSim.CloseDoorAsync();
+            LogDemo($"Door closed on {selectedPm.SerialNumber}");
             break;
         default:
             LogWarning("Invalid action.");
@@ -514,7 +557,7 @@ async Task RunAgentModeAsync(
     }
 }
 
-// ── index mappers max 9 parkmeters at the moment ────────────────────────────────────
+// parkmeters indexes 9 at the moment (not prod)
 int? GetParkmeterIndex(ConsoleKey key)
 {
     var index = key switch
@@ -534,28 +577,28 @@ int? GetParkmeterIndex(ConsoleKey key)
     return index >= 0 ? index : null;
 }
 
-// ── menus ────────────────────────────────────────────
+// menus affich
 void PrintDemoMenu(
     List<ParkMeterInfo> pms,
     int running,
-    List<ParkMeterSimulator> sims)
+    Dictionary<Guid, ParkMeterSimulator> sims)
 {
-    var activeCount = sims.Count(s => !s.IsOffline);
+    var activeCount = sims.Values.Count(s => !s.IsOffline);
 
     Console.ForegroundColor = ConsoleColor.White;
     Console.WriteLine("\n────────────────────────────────────────");
     Console.WriteLine("         PARKMETER SIMULATOR");
     Console.WriteLine("────────────────────────────────────────");
-    Console.WriteLine($"  Running: {activeCount}/{pms.Count} parkmeters"); // ← use activeCount
+    Console.WriteLine($"  Running: {activeCount}/{pms.Count} parkmeters");
     Console.WriteLine("────────────────────────────────────────");
 
     for (int i = 0; i < pms.Count; i++)
     {
         string indicator;
-        if (i >= sims.Count)
+        if (!sims.ContainsKey(pms[i].Id))
             indicator = "OFF";
-        else if (sims[i].IsOffline)
-            indicator = "OFFLINE ";
+        else if (sims[pms[i].Id].IsOffline)
+            indicator = "OFFLINE";
         else
             indicator = "ON";
 
@@ -564,7 +607,7 @@ void PrintDemoMenu(
 
     Console.ForegroundColor = ConsoleColor.Gray;
     Console.WriteLine("────────────────────────────────────────");
-    Console.WriteLine("  [+] Power ON next parkmeter ");
+    Console.WriteLine("  [+] Power ON next parkmeter");
     Console.WriteLine("  [-] Power OFF last parkmeter");
 
     if (activeCount > 0)
@@ -577,14 +620,18 @@ void PrintDemoMenu(
     Console.ResetColor();
 }
 
-void PrintTestSourceMenu(List<ParkMeterInfo> pms, int running)
+void PrintTestSourceMenu(
+    List<ParkMeterInfo> pms,
+    Dictionary<Guid, ParkMeterSimulator> sims)
 {
+    var runningPms = pms.Where(p => sims.ContainsKey(p.Id)).ToList();
+
     Console.ForegroundColor = ConsoleColor.Green;
     Console.WriteLine("────────────────────────────────────────");
     Console.WriteLine("  Select parkmeter(s) to send alerts:");
     Console.WriteLine("  [A] ALL running parkmeters");
-    for (int i = 0; i < running; i++)
-        Console.WriteLine($"  [{i + 1}] {pms[i].SerialNumber}");
+    for (int i = 0; i < runningPms.Count; i++)
+        Console.WriteLine($"  [{i + 1}] {runningPms[i].SerialNumber}");
     Console.WriteLine("────────────────────────────────────────");
     Console.ResetColor();
 }
@@ -592,69 +639,71 @@ void PrintTestSourceMenu(List<ParkMeterInfo> pms, int running)
 
 async Task PrintSimulatorStatus(
     List<ParkMeterInfo> pms,
-    List<ParkMeterSimulator> sims,
+    Dictionary<Guid, ParkMeterSimulator> sims,
     int running,
     HttpClient http)
 {
     Console.ForegroundColor = ConsoleColor.DarkCyan;
     Console.WriteLine("\n════════════════════════════════════════");
-    Console.WriteLine("  SIMULATOR STATUS");
+    Console.WriteLine("  PARKMETER STATUS");
     Console.WriteLine("════════════════════════════════════════");
 
-    for (int i = 0; i < running; i++)
+    var index = 1;
+    foreach (var pm in pms)
     {
-        var sim = sims[i];
+        if (!sims.ContainsKey(pm.Id)) continue;
+        var sim = sims[pm.Id];
 
-        // fetch active alerts from API
-        var activeAlerts = await FetchActiveAlertsAsync(http, pms[i].Id);
+
+
+        var freshPm = await FetchParkmeterByIdAsync(http, pm.Id);
+        var apiStatus = freshPm?.Status ?? sim.Status;
 
         Console.ForegroundColor = ConsoleColor.White;
-        Console.WriteLine($"\n  [{i + 1}] {pms[i].SerialNumber}");
+        Console.WriteLine($"\n  [{index++}] {pm.SerialNumber}");
         Console.ResetColor();
 
-        // Status
-        Console.ForegroundColor = sim.Status == "IN_SERVICE"
+        Console.ForegroundColor = apiStatus == "IN_SERVICE"
             ? ConsoleColor.Green : ConsoleColor.Yellow;
-        Console.WriteLine($"      Status:   {sim.Status}");
+        Console.WriteLine($"      Status:   {apiStatus}");
         Console.ResetColor();
 
-        // Config
         Console.ForegroundColor = sim.HasConfig
             ? ConsoleColor.Green : ConsoleColor.Red;
         Console.WriteLine($"      Config:   {(sim.HasConfig ? "yes" : "none")}");
         Console.ResetColor();
 
-        // Levels
         Console.ForegroundColor = ConsoleColor.DarkCyan;
-        Console.WriteLine($"      Cash:     {sim.CashLevel}%");
-        Console.WriteLine($"      Paper:    {sim.PaperLevel}%");
+        Console.WriteLine($"      Cash:     {Math.Min(sim.CashLevel, 100)}%");
+        Console.WriteLine($"      Paper:    {Math.Max(sim.PaperLevel, 0)}%");
         Console.ResetColor();
 
-        // Flags from API
-        if (sim.Status == "IN_SERVICE")
-            activeAlerts.Clear();
+        var flags = new List<string>();
+        if (sim.CashBoxAlertSent) flags.Add("CASH_BOX_FULL");
+        if (sim.CashBoxWarnSent && !sim.CashBoxAlertSent) flags.Add("CASH_BOX_WARN");
+        if (sim.PaperEmptyAlertSent) flags.Add("PAPER_EMPTY");
+        if (sim.PaperAlertSent && !sim.PaperEmptyAlertSent) flags.Add("PAPER_LOW");
+        if (sim.HardwareFailure) flags.Add("HARDWARE_FAILURE");
+        if (sim.DoorOpen) flags.Add("DOOR_OPEN");
+        if (sim.IsOffline) flags.Add("OFFLINE");
 
-        if (sim.IsOffline) activeAlerts.Add("OFFLINE");
-
-        if (activeAlerts.Count > 0)
+        if (flags.Count > 0)
         {
             Console.ForegroundColor = ConsoleColor.Red;
-            Console.WriteLine($"      Flags:    {string.Join(" | ", activeAlerts)}");
-            Console.ResetColor();
+            Console.WriteLine($"Flags:    {string.Join(" | ", flags)}");
         }
         else
         {
             Console.ForegroundColor = ConsoleColor.Green;
-            Console.WriteLine($"      Flags:    ✅ none");
-            Console.ResetColor();
+            Console.WriteLine($"Flags: none");
         }
+        Console.ResetColor();
     }
 
     Console.ForegroundColor = ConsoleColor.DarkCyan;
     Console.WriteLine("\n════════════════════════════════════════");
     Console.ResetColor();
 }
-
 
 async Task<List<string>> FetchActiveAlertsAsync(
     HttpClient http, Guid parkmeterID)
@@ -673,13 +722,14 @@ async Task<List<string>> FetchActiveAlertsAsync(
         .ToList();
 }
 
-// ── logging ───────────────────────────────────────────
+// logging
 void LogDemo(string message)
 {
     Console.ForegroundColor = ConsoleColor.Magenta;
     Console.WriteLine($"{message}");
     Console.ResetColor();
 }
+
 
 void LogWarning(string message)
 {
@@ -689,7 +739,8 @@ void LogWarning(string message)
 }
 
 
-// ── models ──────────────────────────────────────────── 
+// class models 
+
 class ParkMeterInfo
 {
     public Guid Id { get; set; }
@@ -697,12 +748,14 @@ class ParkMeterInfo
     public string Status { get; set; } = string.Empty;
 }
 
+
 class ParkMeterConfigInfo
 {
     public Guid ParkmeterID { get; set; }
     public decimal PricePerHour { get; set; }
     public int MaxDuration { get; set; } 
 }
+
 
 class AlertInfo
 {
