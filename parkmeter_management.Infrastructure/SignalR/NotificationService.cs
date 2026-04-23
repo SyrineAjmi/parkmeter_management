@@ -83,5 +83,37 @@ namespace parkmeter_management.Infrastructure.SignalR
                     Timestamp = DateTime.UtcNow
                 });
         }
+
+
+        public async Task NotifyInterventionOrderCreated(
+            Guid operatorId,
+            Guid parkmeterID,
+            Guid orderId)
+        {
+            await _hubContext.Clients.All.SendAsync(
+                "InterventionOrderCreated", new
+                {
+                    OperatorId = operatorId,
+                    ParkmeterID = parkmeterID,
+                    OrderId = orderId,
+                    Timestamp = DateTime.UtcNow
+                });
+        }
+
+        public async Task NotifyInterventionOrderCompleted(
+            Guid orderId,
+            Guid parkmeterID,
+            DateTime completedAt)
+        {
+            await _hubContext.Clients.All.SendAsync(
+                "InterventionOrderCompleted", new
+                {
+                    OrderId = orderId,
+                    ParkmeterID = parkmeterID,
+                    CompletedAt = completedAt
+                });
+        }
+
+
     }
 }

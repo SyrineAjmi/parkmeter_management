@@ -24,5 +24,16 @@
             Guid parkmeterID,
             decimal totalAmount,
             int totalTransactions);
+
+        Task NotifyInterventionOrderCreated(
+            Guid operatorId,
+            Guid parkmeterID,
+            Guid orderId);
+
+        Task NotifyInterventionOrderCompleted(
+            Guid orderId,
+            Guid parkmeterID,
+            DateTime completedAt);
     }
-}
+   
+    }

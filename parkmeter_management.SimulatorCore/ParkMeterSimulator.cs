@@ -57,11 +57,15 @@ namespace parkmeter_management.SimulatorCore
 
                 RegisterMessageListener();
 
-                await _client.SubscribeAsync($"parkmeters/{_state.Id}/config",cancellationToken: ct);
+                await _client.SubscribeAsync(
+                    $"parkmeters/{_state.Id}/config",
+                    cancellationToken: ct);
 
-                await _client.SubscribeAsync($"parkmeters/{_state.Id}/status",cancellationToken: ct);
+                await _client.SubscribeAsync(
+                    $"parkmeters/{_state.Id}/status",
+                    cancellationToken: ct);
 
-                // publish reconnected if recovering from CONNECTION_LOST
+                // publish reconnected if CONNECTION_LOST
                 if (_state.WasConnectionLost)
                 {
                     _state.WasConnectionLost = false;
@@ -75,23 +79,37 @@ namespace parkmeter_management.SimulatorCore
                     Log("Reconnected → notified backend",
                         ConsoleColor.Green);
                 }
+                else
+                {
+                    // publish online on first start ✅
+                    await PublishAsync(
+                        $"parkmeters/{_state.Id}/online",
+                        new
+                        {
+                            ParkmeterId = _state.Id.ToString(),
+                            CreatedAt = DateTime.UtcNow
+                        });
+                    Log("Online → notified backend",
+                        ConsoleColor.Green);
+                }
 
-                Log($"Simulation started | " + $"Price: {_state.PricePerHour} DT/h | " + $"Max: {_state.MaxDuration} min",
+                Log($"Simulation started | " +
+                    $"Price: {_state.PricePerHour} DT/h | " +
+                    $"Max: {_state.MaxDuration} min",
                     ConsoleColor.White);
 
                 await RunSimulationLoopAsync(ct);
 
-                //  IsOffline due to POWER_FAILURE : stop completely
                 if (_state.IsOffline && !_state.IsConnectionLost)
                 {
-                    Log("Power failure parkmeterr stopped ", ConsoleColor.Red);
+                    Log("Power failure parkmeter stopped",
+                        ConsoleColor.Red);
                     return;
                 }
 
-                //  IsOffline due to CONNECTION_LOST : wait and reconnect
                 if (_state.IsConnectionLost)
                 {
-                    Log("Connection lost  attempting reconnect...",
+                    Log("Connection lost attempting reconnect...",
                         ConsoleColor.Yellow);
                     _state.IsConnectionLost = false;
                     _state.IsOffline = false;

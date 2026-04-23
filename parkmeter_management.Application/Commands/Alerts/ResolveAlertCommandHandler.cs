@@ -38,7 +38,7 @@ namespace parkmeter_management.Application.Commands.Alerts
             alert.ResolvedAt = DateTime.UtcNow;
             await _alertRepository.UpdateAsync(alert);
 
-            // notify front alert is resolved 
+            // notify front resolved 
             await _notificationService.NotifyAlertResolved(
                 request.AlertId,
                 alert.ParkmeterId);
@@ -54,7 +54,7 @@ namespace parkmeter_management.Application.Commands.Alerts
                  a.Type == AlertType.DOOR_OPEN ||
                  a.Type == AlertType.HARDWARE_FAILURE));
 
-            // revert to IN_SERVICE if not blocked
+            // to IN_SERVICE if not blocked
             if (!stillBlocked)
             {
                 var parkmeter = await _parkmeterRepository

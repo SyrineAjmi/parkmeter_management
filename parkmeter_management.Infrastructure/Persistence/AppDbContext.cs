@@ -15,6 +15,7 @@ namespace parkmeter_management.Infrastructure.Persistence
         public DbSet<Session> Sessions { get; set; }
         public DbSet<ParkMeterConfig> Configurations { get; set; }
         public DbSet<User> Users { get; set; }
+        public DbSet<InterventionOrder> InterventionOrders { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

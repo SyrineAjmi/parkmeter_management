@@ -7,7 +7,7 @@
         public string SerialNumber { get; set; } = string.Empty;
 
         // status 
-        public string Status { get; set; } = "OUT_OF_SERVICE"; 
+        public string Status { get; set; } = "PENDING_ACTIVATION"; 
         public bool HasConfig { get; set; } = false; 
 
         // configuration 

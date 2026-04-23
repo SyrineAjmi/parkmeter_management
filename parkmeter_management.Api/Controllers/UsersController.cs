@@ -1,6 +1,5 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using parkmeter_management.Api.DTOs;
 using parkmeter_management.Api.Mappers;
 using parkmeter_management.Api.Requests.User;
 using parkmeter_management.Application.Managers.Interfaces;

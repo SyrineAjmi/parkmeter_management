@@ -4,7 +4,8 @@
                                 IN_SERVICE, 
                                 OUT_OF_SERVICE, 
                                 MAINTENANCE,
-                                TEMPORARILY_UNAVAILABLE
+                                TEMPORARILY_UNAVAILABLE,
+                                PENDING_ACTIVATION
     }
 
 }

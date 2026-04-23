@@ -8,26 +8,29 @@ using System.Text.Json;
 namespace parkmeter_management.Application.Commands.Mqtt.HandleCashRemoved
 {
     public class HandleCashRemovedCommandHandler
-        : IRequestHandler<HandleCashRemovedCommand, bool>
+     : IRequestHandler<HandleCashRemovedCommand, bool>
     {
         private readonly IAlertRepository _alertRepository;
         private readonly IParkmeterRepository _parkmeterRepository;
         private readonly ISessionRepository _sessionRepository;
         private readonly IMqttPublisherService _mqttPublisher;
         private readonly INotificationService _notificationService;
+        private readonly IInterventionOrderRepository _interventionOrderRepository; 
 
         public HandleCashRemovedCommandHandler(
             IAlertRepository alertRepository,
             IParkmeterRepository parkmeterRepository,
             ISessionRepository sessionRepository,
             IMqttPublisherService mqttPublisher,
-            INotificationService notificationService)
+            INotificationService notificationService,
+            IInterventionOrderRepository interventionOrderRepository) 
         {
             _alertRepository = alertRepository;
             _parkmeterRepository = parkmeterRepository;
             _sessionRepository = sessionRepository;
             _mqttPublisher = mqttPublisher;
             _notificationService = notificationService;
+            _interventionOrderRepository = interventionOrderRepository; 
         }
 
         public async Task<bool> Handle(
@@ -83,6 +86,29 @@ namespace parkmeter_management.Application.Commands.Mqtt.HandleCashRemoved
                 Console.WriteLine($"Auto-resolved: {a.Type}");
             }
 
+            // auto-complete intervention order
+            var pendingOrder = await _interventionOrderRepository
+                .GetPendingByParkmeterAndTypeAsync(
+                    parkmeterID,
+                    InterventionType.CASH_COLLECTION);
+
+
+            if (pendingOrder != null)
+            {
+                pendingOrder.Status = InterventionOrderStatus.COMPLETED;
+                pendingOrder.CompletedAt = DateTime.UtcNow;
+                await _interventionOrderRepository
+                    .UpdateAsync(pendingOrder);
+                Console.WriteLine($"Intervention order completed: " +
+                    $"{pendingOrder.Id}");
+
+                await _notificationService
+                    .NotifyInterventionOrderCompleted(
+                        pendingOrder.Id,
+                        parkmeterID,
+                        pendingOrder.CompletedAt.Value);
+            }
+
             // check stillBlocked
             var remaining = await _alertRepository
                 .GetByParkmeterAsync(parkmeterID);
@@ -95,8 +121,18 @@ namespace parkmeter_management.Application.Commands.Mqtt.HandleCashRemoved
             // if not blocked revert to in_service
             var parkmeter = await _parkmeterRepository
                 .GetByIdAsync(parkmeterID);
+
+            var anyOtherPendingOrder = await _interventionOrderRepository
+                .GetPendingByParkmeterAndTypeAsync(
+                    parkmeterID,
+                    InterventionType.PAPER_REFILL); 
+
             if (!stillBlocked && parkmeter != null &&
-                parkmeter.Status == MeterStatus.TEMPORARILY_UNAVAILABLE)
+                (parkmeter.Status ==
+                    MeterStatus.TEMPORARILY_UNAVAILABLE ||
+                 parkmeter.Status ==
+                    MeterStatus.MAINTENANCE) &&
+                 anyOtherPendingOrder == null) //  only if no other pending 
             {
                 parkmeter.Status = MeterStatus.IN_SERVICE;
                 await _parkmeterRepository.UpdateAsync(parkmeter);

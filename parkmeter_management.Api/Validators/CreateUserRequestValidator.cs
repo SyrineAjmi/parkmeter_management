@@ -34,7 +34,8 @@ namespace parkmeter_management.Api.Validators
                     "AGENT_INSTALLATION", 
                     "GESTIONNAIRE_SYSTEME",
                     "SUPERVISEUR",
-                    "RESPONSABLE_FINANCIER"
+                    "RESPONSABLE_FINANCIER",
+                    "OPERATEUR"
                 }.Contains(r))
                 .WithMessage("Invalid role value"); 
         }

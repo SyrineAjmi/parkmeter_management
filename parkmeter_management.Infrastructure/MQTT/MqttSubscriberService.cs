@@ -8,6 +8,7 @@ using parkmeter_management.Application.Commands.Mqtt.HandleDoorClosed;
 using parkmeter_management.Application.Commands.Mqtt.HandlePaperRefilled;
 using parkmeter_management.Application.Commands.Mqtt.HandleReconnected;
 using parkmeter_management.Application.Commands.Mqtt.HandleTransactions;
+using parkmeter_management.Application.Commands.Mqtt.HandleParkmeterOnline; 
 
 public class MqttSubscriberService
 {
@@ -58,6 +59,10 @@ public class MqttSubscriberService
                 await RouteAsync(payload,
                     new HandleReconnectedCommand
                     { Payload = payload });
+            else if (topic.EndsWith("/online"))
+                await RouteAsync(payload,
+                    new HandleParkmeterOnlineCommand
+                    { Payload = payload });
             else
                 Console.WriteLine($"Unknown topic: {topic}");
         };
@@ -69,6 +74,7 @@ public class MqttSubscriberService
         await _client.SubscribeAsync("parkmeters/+/paper-refilled");
         await _client.SubscribeAsync("parkmeters/+/door-closed");
         await _client.SubscribeAsync("parkmeters/+/reconnected");
+        await _client.SubscribeAsync("parkmeters/+/online");
 
         Console.WriteLine("Subscribed to parkmeter topics");
     }
@@ -86,7 +92,7 @@ public class MqttSubscriberService
         catch (Exception ex)
         {
             Console.WriteLine($"[ERROR] Routing: {ex.Message}");
-        }
+        } 
     }
 
     public async Task StopAsync()

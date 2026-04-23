@@ -47,7 +47,7 @@ namespace parkmeter_management.Application.Commands.Alerts
                 a.Status == AlertStatus.NOT_RESOLVED);
             if (isDuplicate) return Guid.Empty;
 
-            // IN_SERVICE : operational alerts only 
+            // IN_SERVICE operational alerts only 
             var operationalAlerts =
                 AlertType.CASH_BOX_WARN |
                 AlertType.CASH_BOX_FULL |
@@ -59,7 +59,7 @@ namespace parkmeter_management.Application.Commands.Alerts
                 && parkmeter.Status != MeterStatus.TEMPORARILY_UNAVAILABLE)
                 return Guid.Empty;
 
-            // blocking alerts : TEMPORARILY_UNAVAILABLE
+            // blocking alerts TEMPORARILY_UNAVAILABLE
             var blockingAlerts =
                 AlertType.CASH_BOX_FULL |
                 AlertType.PAPER_EMPTY |
@@ -76,7 +76,7 @@ namespace parkmeter_management.Application.Commands.Alerts
                     MeterStatus.TEMPORARILY_UNAVAILABLE.ToString());
             }
 
-            // POWER_FAILURE : OUT_OF_SERVICE
+            // POWER_FAILURE  OUT_OF_SERVICE
             if (command.Type.HasFlag(AlertType.POWER_FAILURE))
             {
                 parkmeter.Status = MeterStatus.OUT_OF_SERVICE;

@@ -13,6 +13,6 @@ namespace parkmeter_management.Application.Interfaces.Repositories
         Task<IEnumerable<Transaction>> GetBySessionAsync(Guid sessionId);
         Task<IEnumerable<Transaction>> GetByDateRangeAsync(
             DateTime? from, DateTime? to);
-
     }
+
 }

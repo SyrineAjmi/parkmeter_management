@@ -90,6 +90,8 @@ builder.Services.AddScoped<IJwtService, JwtService>();
 builder.Services.AddScoped<IAuthManager, AuthManager>();
 builder.Services.AddScoped<IPasswordHasher, PasswordHasher>();
 builder.Services.AddScoped<INotificationService,NotificationService>();
+builder.Services.AddScoped<IInterventionOrderRepository, InterventionOrderRepository>();
+builder.Services.AddScoped<IInterventionOrderManager, InterventionOrderManager>();
 
 
 // allowing cors for ui
@@ -99,8 +101,8 @@ builder.Services.AddCors(options =>
     {
         policy
             .WithOrigins(
-                "http://localhost:3000",  // React
-                "http://localhost:4200")  // Angular
+                "http://localhost:3000",  
+                "http://localhost:4200") 
             .AllowAnyHeader()
             .AllowAnyMethod()
             .AllowCredentials(); 
@@ -132,11 +134,164 @@ var app = builder.Build();
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    //await db.Database.EnsureDeletedAsync();  // drops everything 
+    //await db.Database.EnsureDeletedAsync();  // refaire la bd 
     await db.Database.EnsureCreatedAsync();
     Console.WriteLine(" Database ready");
 
-}
+    ////// In Program.cs after app.Build():
+    //using (scope)
+    //{
+    //    var context = scope.ServiceProvider
+    //        .GetRequiredService<AppDbContext>();
+
+    //    await context.Database.MigrateAsync();
+
+    //    if (!context.Users.Any())
+    //    {
+    //        // ── Users ──────────────────────────────
+    //        var agent = new User
+    //        {
+    //            Id = Guid.NewGuid(),
+    //            Name = "Agent",
+    //            Email = "agent@parkmeter.tn",
+    //            PasswordHash = BCrypt.Net.BCrypt
+    //                .HashPassword("Agent123!"),
+    //            Role = Role.AGENT_INSTALLATION,
+    //            IsActive = true,
+    //            CreatedAt = DateTime.UtcNow
+    //        };
+
+    //        var superviseur = new User
+    //        {
+    //            Id = Guid.NewGuid(),
+    //            Name = "Superviseur",
+    //            Email = "sup@parkmeter.tn",
+    //            PasswordHash = BCrypt.Net.BCrypt
+    //                .HashPassword("Sup123!"),
+    //            Role = Role.SUPERVISEUR,
+    //            IsActive = true,
+    //            CreatedAt = DateTime.UtcNow
+    //        };
+
+    //        var gestionnaire = new User
+    //        {
+    //            Id = Guid.NewGuid(),
+    //            Name = "Gestionnaire",
+    //            Email = "gest@parkmeter.tn",
+    //            PasswordHash = BCrypt.Net.BCrypt
+    //                .HashPassword("Gest123!"),
+    //            Role = Role.GESTIONNAIRE_SYSTEME,
+    //            IsActive = true,
+    //            CreatedAt = DateTime.UtcNow
+    //        };
+
+    //        var financier = new User
+    //        {
+    //            Id = Guid.NewGuid(),
+    //            Name = "Financier",
+    //            Email = "fin@parkmeter.tn",
+    //            PasswordHash = BCrypt.Net.BCrypt
+    //                .HashPassword("Fin123!"),
+    //            Role = Role.RESPONSABLE_FINANCIER,
+    //            IsActive = true,
+    //            CreatedAt = DateTime.UtcNow
+    //        };
+
+    //        var operateur = new User
+    //        {
+    //            Id = Guid.NewGuid(),
+    //            Name = "Operateur",
+    //            Email = "op@parkmeter.tn",
+    //            PasswordHash = BCrypt.Net.BCrypt
+    //                .HashPassword("Op123!"),
+    //            Role = Role.OPERATEUR,
+    //            IsActive = true,
+    //            CreatedAt = DateTime.UtcNow
+    //        };
+
+    //        await context.Users.AddRangeAsync(
+    //            agent, superviseur, gestionnaire,
+    //            financier, operateur);
+    //        await context.SaveChangesAsync();
+    //        Console.WriteLine("✅ Users seeded");
+
+    //        // ── Sites ──────────────────────────────
+    //        var site1 = new Site
+    //        {
+    //            Id = Guid.NewGuid(),
+    //            Name = "Centre Ville",
+    //            Address = "Rue de la Republique, Tunis",
+    //            Description = "Parking centre ville",
+    //            CreatedAt = DateTime.UtcNow
+    //        };
+
+    //        var site2 = new Site
+    //        {
+    //            Id = Guid.NewGuid(),
+    //            Name = "La Marsa",
+    //            Address = "Avenue Habib Bourguiba, La Marsa",
+    //            Description = "Parking bord de mer",
+    //            CreatedAt = DateTime.UtcNow
+    //        };
+
+    //        await context.Sites.AddRangeAsync(site1, site2);
+    //        await context.SaveChangesAsync();
+    //        Console.WriteLine("✅ Sites seeded");
+
+
+            //        // ── Parkmeters ─────────────────────────
+            //        var pm1 = new Parkmeter
+            //        {
+            //            Id = Guid.NewGuid(),
+            //            SerialNumber = "PM001",
+            //            Status = MeterStatus.OUT_OF_SERVICE,
+            //            SiteId = site1.Id,
+            //            CreatedAt = DateTime.UtcNow
+            //        };
+
+            //        var pm2 = new Parkmeter
+            //        {
+            //            Id = Guid.NewGuid(),
+            //            SerialNumber = "PM002",
+            //            Status = MeterStatus.OUT_OF_SERVICE,
+            //            SiteId = site2.Id,
+            //            CreatedAt = DateTime.UtcNow
+            //        };
+
+            //        await context.Parkmeters.AddRangeAsync(pm1, pm2);
+            //        await context.SaveChangesAsync();
+            //        Console.WriteLine("✅ Parkmeters seeded");
+
+            //        // ── Configurations ─────────────────────
+            //        var config1 = new ParkMeterConfig
+            //        {
+            //            Id = Guid.NewGuid(),
+            //            ParkmeterId = pm1.Id,
+            //            PricePerHour = 1.00m,
+            //            MaxDuration = 120,
+            //            CreatedAt = DateTime.UtcNow,
+            //            UpdatedAt = DateTime.UtcNow
+            //        };
+
+            //        var config2 = new ParkMeterConfig
+            //        {
+            //            Id = Guid.NewGuid(),
+            //            ParkmeterId = pm2.Id,
+            //            PricePerHour = 1.50m,
+            //            MaxDuration = 90,
+            //            CreatedAt = DateTime.UtcNow,
+            //            UpdatedAt = DateTime.UtcNow
+            //        };
+
+            //        await context.Configurations
+            //            .AddRangeAsync(config1, config2);
+            //        await context.SaveChangesAsync();
+            //        Console.WriteLine("✅ Configurations seeded");
+
+            //    }
+            //}
+
+        }
 
 
 

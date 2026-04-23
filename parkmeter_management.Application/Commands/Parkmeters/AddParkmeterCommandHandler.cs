@@ -44,7 +44,7 @@ namespace parkmeter_management.Application.Commands.Parkmeters
         Id           = Guid.NewGuid(),
         SerialNumber = command.SerialNumber,
         SiteId       = command.SiteId,
-        Status       = MeterStatus.OUT_OF_SERVICE,
+        Status       = MeterStatus.PENDING_ACTIVATION,
         CreatedAt    = DateTime.UtcNow
     };
 

@@ -13,15 +13,21 @@ namespace parkmeter_management.Application.Commands.Mqtt.HandlePaperRefilled
         private readonly IAlertRepository _alertRepository;
         private readonly IParkmeterRepository _parkmeterRepository;
         private readonly IMqttPublisherService _mqttPublisher;
+        private readonly IInterventionOrderRepository _interventionOrderRepository; // ← add
+        private readonly INotificationService _notificationService; // ← add
 
         public HandlePaperRefilledCommandHandler(
             IAlertRepository alertRepository,
             IParkmeterRepository parkmeterRepository,
-            IMqttPublisherService mqttPublisher)
+            IMqttPublisherService mqttPublisher,
+            IInterventionOrderRepository interventionOrderRepository, // ← add
+            INotificationService notificationService) // ← add
         {
             _alertRepository = alertRepository;
             _parkmeterRepository = parkmeterRepository;
             _mqttPublisher = mqttPublisher;
+            _interventionOrderRepository = interventionOrderRepository; // ← add
+            _notificationService = notificationService; // ← add
         }
 
         public async Task<bool> Handle(
@@ -47,6 +53,27 @@ namespace parkmeter_management.Application.Commands.Mqtt.HandlePaperRefilled
                 Console.WriteLine($"Auto-resolved: {a.Type}");
             }
 
+            // auto-complete intervention order ← ADD
+            var pendingOrder = await _interventionOrderRepository
+                .GetPendingByParkmeterAndTypeAsync(
+                    parkmeterID,
+                    InterventionType.PAPER_REFILL);
+
+            if (pendingOrder != null)
+            {
+                pendingOrder.Status = InterventionOrderStatus.COMPLETED;
+                pendingOrder.CompletedAt = DateTime.UtcNow;
+                await _interventionOrderRepository
+                    .UpdateAsync(pendingOrder);
+                Console.WriteLine($"✅ Paper refill order completed");
+
+                await _notificationService
+                    .NotifyInterventionOrderCompleted(
+                        pendingOrder.Id,
+                        parkmeterID,
+                        pendingOrder.CompletedAt.Value);
+            }
+
             // check stillBlocked
             var remaining = await _alertRepository
                 .GetByParkmeterAsync(parkmeterID);
@@ -56,11 +83,22 @@ namespace parkmeter_management.Application.Commands.Mqtt.HandlePaperRefilled
                  a.Type == AlertType.HARDWARE_FAILURE ||
                  a.Type == AlertType.DOOR_OPEN));
 
-            // if not blocked revert to in_service 
+            // revert to IN_SERVICE ← update condition
             var parkmeter = await _parkmeterRepository
                 .GetByIdAsync(parkmeterID);
+
+            // Check if cash collection order pending:
+            var anyOtherPendingOrder = await _interventionOrderRepository
+                .GetPendingByParkmeterAndTypeAsync(
+                    parkmeterID,
+                    InterventionType.CASH_COLLECTION); // check cash order
+
             if (!stillBlocked && parkmeter != null &&
-                parkmeter.Status == MeterStatus.TEMPORARILY_UNAVAILABLE)
+                (parkmeter.Status ==
+                    MeterStatus.TEMPORARILY_UNAVAILABLE ||
+                 parkmeter.Status ==
+                    MeterStatus.MAINTENANCE) &&
+                 anyOtherPendingOrder == null) // only if no other pending ✅
             {
                 parkmeter.Status = MeterStatus.IN_SERVICE;
                 await _parkmeterRepository.UpdateAsync(parkmeter);
@@ -68,10 +106,10 @@ namespace parkmeter_management.Application.Commands.Mqtt.HandlePaperRefilled
                     parkmeterID,
                     MeterStatus.IN_SERVICE.ToString());
                 Console.WriteLine(
-                    $"{parkmeter.SerialNumber} : IN_SERVICE (paper refilled)");
+                    $"{parkmeter.SerialNumber} : IN_SERVICE");
             }
 
-            // save resolved alert 
+            // save resolved alert
             await _alertRepository.AddAsync(new Alert
             {
                 Id = Guid.NewGuid(),

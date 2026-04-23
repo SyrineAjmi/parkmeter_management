@@ -329,6 +329,7 @@ async Task RunTestModeAsync(
         AlertType.POWER_FAILURE |
         AlertType.CONNECTION_LOST |
         AlertType.CASH_BOX_REMOVED;
+   
 
     // select source ─────────────────────────
     PrintTestSourceMenu(pms, sims);

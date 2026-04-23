@@ -15,4 +15,5 @@ namespace parkmeter_management.Application.Interfaces.Repositories
         Task<IEnumerable<Alert>> GetUnresolvedByParkmeterAsync(Guid parkmeterID);
 
     }
+
 }
