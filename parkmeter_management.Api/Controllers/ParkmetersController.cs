@@ -15,27 +15,28 @@ namespace parkmeter_management.Api.Controllers
         private readonly IAlertManager _alertManager;
         private readonly IParkmeterConfigurationManager _configurationManager;
         private readonly ISessionManager _sessionManager;
+        private readonly IEventManager _eventManager;
 
         public ParkmetersController(
             IParkmeterManager parkmeterManager,
             IAlertManager alertManager,
             IParkmeterConfigurationManager configurationManager,
-            ISessionManager sessionManager)
+            ISessionManager sessionManager,
+            IEventManager eventManager)
         {
-            _parkmeterManager = parkmeterManager;
-            _alertManager = alertManager;
+            _parkmeterManager     = parkmeterManager;
+            _alertManager         = alertManager;
             _configurationManager = configurationManager;
-            _sessionManager = sessionManager;
+            _sessionManager       = sessionManager;
+            _eventManager         = eventManager;
         }
 
         //----------------------------------------------------------
 
-
         [HttpGet]
         public async Task<IActionResult> GetAll()
         {
-            var parkmeters = await _parkmeterManager
-                .GetAllParkmeters();
+            var parkmeters = await _parkmeterManager.GetAllParkmeters();
             return Ok(parkmeters.ToDtos());
         }
 
@@ -54,8 +55,7 @@ namespace parkmeter_management.Api.Controllers
         [HttpGet("site/{siteId}")]
         public async Task<IActionResult> GetBySite(Guid siteId)
         {
-            var parkmeters = await _parkmeterManager
-                .GetBySite(siteId);
+            var parkmeters = await _parkmeterManager.GetBySite(siteId);
             return Ok(parkmeters.ToDtos());
         }
 
@@ -90,12 +90,10 @@ namespace parkmeter_management.Api.Controllers
             try
             {
                 var id = await _parkmeterManager
-                    .AddParkmeter(
-                        request.SerialNumber,
-                        request.SiteId);
+                    .AddParkmeter(request.SerialNumber, request.SiteId);
                 return Ok(new
                 {
-                    Id = id,
+                    Id      = id,
                     Message = "Parkmeter added successfully"
                 });
             }
@@ -129,8 +127,7 @@ namespace parkmeter_management.Api.Controllers
                 request.Status, true, out var status))
                 return BadRequest("Invalid status value");
 
-            var result = await _parkmeterManager
-                .ChangeStatus(id, status);
+            var result = await _parkmeterManager.ChangeStatus(id, status);
 
             if (!result)
             {
@@ -155,24 +152,28 @@ namespace parkmeter_management.Api.Controllers
             var config = await _configurationManager
                 .GetConfiguration(id);
 
-            var activeAlerts = await _alertManager
-                .GetByParkmeter(id);
-            var alertDtos = (await _alertManager
+            var activeAlerts = (await _alertManager
                 .GetUnresolvedByParkmeter(id))
                 .ToDtos()
                 .ToList();
 
             var sessions = await _sessionManager.GetByParkmeter(id);
             var currentSession = sessions
-                .FirstOrDefault(s =>
-                    s.Status == SessionStatus.ACTIVE);
+                .FirstOrDefault(s => s.Status == SessionStatus.ACTIVE);
+
+            // last 20 events for the machine history panel
+            var recentEvents = (await _eventManager
+                .GetRecentByParkmeter(id))
+                .ToDtos()
+                .ToList();
 
             return Ok(new
             {
-                Parkmeter = parkmeter.ToDto(),
-                Config = config?.ToDto(),
-                ActiveAlerts = alertDtos,
-                CurrentSession = currentSession?.ToDto()
+                Parkmeter      = parkmeter.ToDto(),
+                Config         = config?.ToDto(),
+                ActiveAlerts   = activeAlerts,
+                CurrentSession = currentSession?.ToDto(),
+                RecentEvents   = recentEvents
             });
         }
     }

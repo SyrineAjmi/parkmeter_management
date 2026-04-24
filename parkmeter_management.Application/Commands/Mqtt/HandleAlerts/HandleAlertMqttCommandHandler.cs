@@ -22,6 +22,7 @@ namespace parkmeter_management.Application.Commands.Mqtt.HandleAlerts
         {
             var raw = JsonSerializer
                 .Deserialize<JsonElement>(command.Payload);
+
             var parkmeterId = Guid.Parse(
                 raw.GetProperty("ParkmeterId").GetString()!);
             var alertValue = raw.GetProperty("AlertType").GetInt32();
@@ -32,15 +33,18 @@ namespace parkmeter_management.Application.Commands.Mqtt.HandleAlerts
                 if (type == AlertType.NONE) continue;
                 if (!combinedType.HasFlag(type)) continue;
 
+                // AlertType now contains only real problems —
+                // operator events go through parkmeters/{id}/events topic
                 var alertId = await _mediator.Send(
                     new CreateAlertCommand
                     {
                         ParkmeterId = parkmeterId,
                         Type = type,
                         Description = $"{type} detected"
-                    });
+                    }, ct);
 
-                Console.WriteLine($"Alert saved: {type} " +
+                Console.WriteLine(
+                    $"[ALERT] {type} " +
                     $"(Priority: {AlertPriorityHelper.GetPriority(type)}) " +
                     $"→ {alertId}");
             }

@@ -1,0 +1,15 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\parkmeter_management.Application\parkmeter_management.Application.csproj" />
+    <ProjectReference Include="..\parkmeter_management.Domain\parkmeter_management.Domain.csproj" />
+    <ProjectReference Include="..\parkmeter_management.Infrastructure\parkmeter_management.Infrastructure.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -3,61 +3,58 @@ using parkmeter_management.Application.Interfaces.Repositories;
 using parkmeter_management.Application.Interfaces.Services;
 using parkmeter_management.Domain.Entities;
 using parkmeter_management.Domain.Enums;
-using System.Text.Json;
 
-namespace parkmeter_management.Application.Commands.Mqtt.HandleCashRemoved
+namespace parkmeter_management.Application.Commands.Simulator.HandleCashRemoved
 {
     public class HandleCashRemovedCommandHandler
-     : IRequestHandler<HandleCashRemovedCommand, bool>
+        : IRequestHandler<HandleCashRemovedCommand, bool>
     {
         private readonly IAlertRepository _alertRepository;
         private readonly IParkmeterRepository _parkmeterRepository;
         private readonly ISessionRepository _sessionRepository;
+        private readonly IInterventionOrderRepository _interventionOrderRepository;
         private readonly IMqttPublisherService _mqttPublisher;
         private readonly INotificationService _notificationService;
-        private readonly IInterventionOrderRepository _interventionOrderRepository; 
 
         public HandleCashRemovedCommandHandler(
             IAlertRepository alertRepository,
             IParkmeterRepository parkmeterRepository,
             ISessionRepository sessionRepository,
+            IInterventionOrderRepository interventionOrderRepository,
             IMqttPublisherService mqttPublisher,
-            INotificationService notificationService,
-            IInterventionOrderRepository interventionOrderRepository) 
+            INotificationService notificationService)
         {
             _alertRepository = alertRepository;
             _parkmeterRepository = parkmeterRepository;
             _sessionRepository = sessionRepository;
+            _interventionOrderRepository = interventionOrderRepository;
             _mqttPublisher = mqttPublisher;
             _notificationService = notificationService;
-            _interventionOrderRepository = interventionOrderRepository; 
         }
 
         public async Task<bool> Handle(
             HandleCashRemovedCommand command,
             CancellationToken ct)
         {
-            var raw = JsonSerializer
-                .Deserialize<JsonElement>(command.Payload);
-            var parkmeterID = Guid.Parse(
-                raw.GetProperty("ParkmeterId").GetString()!);
+            var parkmeterID = command.ParkmeterId;
 
             // close active session
-            var activeSession = await _sessionRepository
+            var session = await _sessionRepository
                 .GetActiveSessionByParkmeterAsync(parkmeterID);
 
-            if (activeSession != null)
+            if (session != null)
             {
-                activeSession.Status = SessionStatus.CLOSED;
-                activeSession.EndDateTime = DateTime.UtcNow;
-                await _sessionRepository.UpdateAsync(activeSession);
-                Console.WriteLine($"Session closed | " +
-                    $"Total: {activeSession.TotalAmount} DT");
+                session.Status = SessionStatus.CLOSED;
+                session.EndDateTime = DateTime.UtcNow;
+                await _sessionRepository.UpdateAsync(session);
 
                 await _notificationService.NotifySessionClosed(
                     parkmeterID,
-                    activeSession.TotalAmount,
-                    activeSession.TotalTransactions);
+                    session.TotalAmount,
+                    session.TotalTransactions);
+
+                Console.WriteLine(
+                    $"Session closed | Total: {session.TotalAmount} DT");
             }
 
             // open new session
@@ -83,83 +80,72 @@ namespace parkmeter_management.Application.Commands.Mqtt.HandleCashRemoved
                 a.Status = AlertStatus.RESOLVED;
                 a.ResolvedAt = DateTime.UtcNow;
                 await _alertRepository.UpdateAsync(a);
+
+                await _notificationService.NotifyAlertResolved(
+                    a.Id, parkmeterID);
+
                 Console.WriteLine($"Auto-resolved: {a.Type}");
             }
 
             // auto-complete intervention order
-            var pendingOrder = await _interventionOrderRepository
+            var order = await _interventionOrderRepository
                 .GetPendingByParkmeterAndTypeAsync(
                     parkmeterID,
                     InterventionType.CASH_COLLECTION);
 
-
-            if (pendingOrder != null)
+            if (order != null)
             {
-                pendingOrder.Status = InterventionOrderStatus.COMPLETED;
-                pendingOrder.CompletedAt = DateTime.UtcNow;
-                await _interventionOrderRepository
-                    .UpdateAsync(pendingOrder);
-                Console.WriteLine($"Intervention order completed: " +
-                    $"{pendingOrder.Id}");
+                order.Status = InterventionOrderStatus.COMPLETED;
+                order.CompletedAt = DateTime.UtcNow;
+                await _interventionOrderRepository.UpdateAsync(order);
 
-                await _notificationService
-                    .NotifyInterventionOrderCompleted(
-                        pendingOrder.Id,
-                        parkmeterID,
-                        pendingOrder.CompletedAt.Value);
+                await _notificationService.NotifyInterventionOrderCompleted(
+                    order.Id,
+                    parkmeterID,
+                    order.CompletedAt.Value);
+
+                Console.WriteLine("✅ Intervention order completed");
             }
 
             // check stillBlocked
             var remaining = await _alertRepository
                 .GetByParkmeterAsync(parkmeterID);
+
             var stillBlocked = remaining.Any(a =>
                 a.Status == AlertStatus.NOT_RESOLVED &&
                 (a.Type == AlertType.PAPER_EMPTY ||
                  a.Type == AlertType.HARDWARE_FAILURE ||
                  a.Type == AlertType.DOOR_OPEN));
 
-            // if not blocked revert to in_service
+            var otherOrder = await _interventionOrderRepository
+                .GetPendingByParkmeterAndTypeAsync(
+                    parkmeterID,
+                    InterventionType.PAPER_REFILL);
+
             var parkmeter = await _parkmeterRepository
                 .GetByIdAsync(parkmeterID);
 
-            var anyOtherPendingOrder = await _interventionOrderRepository
-                .GetPendingByParkmeterAndTypeAsync(
-                    parkmeterID,
-                    InterventionType.PAPER_REFILL); 
-
-            if (!stillBlocked && parkmeter != null &&
-                (parkmeter.Status ==
-                    MeterStatus.TEMPORARILY_UNAVAILABLE ||
-                 parkmeter.Status ==
-                    MeterStatus.MAINTENANCE) &&
-                 anyOtherPendingOrder == null) //  only if no other pending 
+            if (!stillBlocked &&
+                parkmeter != null &&
+                otherOrder == null &&
+                (parkmeter.Status == MeterStatus.TEMPORARILY_UNAVAILABLE ||
+                 parkmeter.Status == MeterStatus.MAINTENANCE))
             {
                 parkmeter.Status = MeterStatus.IN_SERVICE;
                 await _parkmeterRepository.UpdateAsync(parkmeter);
                 await _mqttPublisher.PublishStatusAsync(
                     parkmeterID,
                     MeterStatus.IN_SERVICE.ToString());
-                Console.WriteLine(
-                    $"{parkmeter.SerialNumber} : IN_SERVICE");
+
+                await _notificationService.NotifyStatusChanged(
+                    parkmeterID,
+                    MeterStatus.IN_SERVICE.ToString());
+
+                Console.WriteLine("✅ IN_SERVICE");
             }
 
-            // saving resolved alert
-            await _alertRepository.AddAsync(new Alert
-            {
-                Id = Guid.NewGuid(),
-                ParkmeterId = parkmeterID,
-                Type = AlertType.CASH_BOX_REMOVED,
-                Priority = Priority.NORMAL,
-                Description = "Cash box removed by agent",
-                Status = AlertStatus.RESOLVED,
-                CreatedAt = DateTime.UtcNow,
-                ResolvedAt = DateTime.UtcNow
-            });
 
             return true;
         }
     }
 }
-
-
-

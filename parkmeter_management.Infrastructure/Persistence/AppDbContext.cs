@@ -1,12 +1,12 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using parkmeter_management.Domain.Entities;
-using System.Collections.Specialized;
 
 namespace parkmeter_management.Infrastructure.Persistence
 {
     public class AppDbContext : DbContext
     {
-        public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) { }
+        public AppDbContext(DbContextOptions<AppDbContext> options)
+            : base(options) { }
 
         public DbSet<Alert> Alerts { get; set; }
         public DbSet<Parkmeter> Parkmeters { get; set; }
@@ -16,6 +16,7 @@ namespace parkmeter_management.Infrastructure.Persistence
         public DbSet<ParkMeterConfig> Configurations { get; set; }
         public DbSet<User> Users { get; set; }
         public DbSet<InterventionOrder> InterventionOrders { get; set; }
+        public DbSet<ParkMeterEvent> ParkMeterEvents { get; set; } // NEW
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -44,22 +45,25 @@ namespace parkmeter_management.Infrastructure.Persistence
             modelBuilder.Entity<ParkMeterConfig>(entity =>
             {
                 entity.HasKey(e => e.Id);
-                entity.Property(e => e.PricePerHour).HasColumnType("decimal(18,2)");
+                entity.Property(e => e.PricePerHour)
+                      .HasColumnType("decimal(18,2)");
             });
 
             // Transaction
             modelBuilder.Entity<Transaction>(entity =>
             {
                 entity.HasKey(e => e.Id);
-                entity.Property(e => e.Amount).HasColumnType("decimal(18,2)");
+                entity.Property(e => e.Amount)
+                      .HasColumnType("decimal(18,2)");
                 entity.Property(e => e.Status).HasConversion<string>();
             });
 
-            // Session (with Status)
+            // Session
             modelBuilder.Entity<Session>(entity =>
             {
                 entity.HasKey(e => e.Id);
-                entity.Property(e => e.TotalAmount).HasColumnType("decimal(18,2)");
+                entity.Property(e => e.TotalAmount)
+                      .HasColumnType("decimal(18,2)");
                 entity.Property(e => e.Status).HasConversion<string>();
             });
 
@@ -77,8 +81,18 @@ namespace parkmeter_management.Infrastructure.Persistence
                 entity.HasKey(e => e.Id);
             });
 
+            // ParkMeterEvent — NEW
+            modelBuilder.Entity<ParkMeterEvent>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.EventType).HasConversion<string>();
+                entity.HasOne(e => e.Parkmeter)
+                      .WithMany()
+                      .HasForeignKey(e => e.ParkmeterId)
+                      .OnDelete(DeleteBehavior.Cascade);
+            });
+
             base.OnModelCreating(modelBuilder);
-            
         }
     }
 }

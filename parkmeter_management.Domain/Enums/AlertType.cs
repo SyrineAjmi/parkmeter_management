@@ -6,13 +6,11 @@
         NONE = 0,
         CASH_BOX_WARN = 1,
         CASH_BOX_FULL = 2,
-        CASH_BOX_REMOVED = 4,
-        PAPER_LOW = 8,
-        PAPER_EMPTY = 16,
-        PAPER_REFILLED = 32,
-        HARDWARE_FAILURE = 64,
-        DOOR_OPEN = 128,
-        POWER_FAILURE = 256,
-        CONNECTION_LOST = 512
+        PAPER_LOW = 4,
+        PAPER_EMPTY = 8,
+        HARDWARE_FAILURE = 16,
+        DOOR_OPEN = 32,
+        POWER_FAILURE = 64,
+        CONNECTION_LOST = 128
     }
 }
