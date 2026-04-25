@@ -22,11 +22,6 @@ var http = new HttpClient(handler)
     BaseAddress = new Uri("https://localhost:7016/") 
 };
 
-var simHttp = new HttpClient(handler)
-{
-    BaseAddress = new Uri("https://localhost:7017/")
-};
-
 
 // ── json options ──────────────────────────────────────
 var jsonOptions = new JsonSerializerOptions
@@ -103,7 +98,7 @@ while (true)
         continue;
     }
     if (key == ConsoleKey.OemPlus
-     || key == ConsoleKey.Add) { await PowerOnAsync(http,simHttp, parkmeters, simulators, simTasks, cts); runningCount = simulators.Count; 
+     || key == ConsoleKey.Add) { await PowerOnAsync(http, parkmeters, simulators, simTasks, cts); runningCount = simulators.Count; 
         //PrintDemoMenu(parkmeters, runningCount, simulators); 
         continue; }
     if (key == ConsoleKey.OemMinus
@@ -129,7 +124,6 @@ async Task ShutdownAsync(
 // ── powering on the parkmeters ──────────────────────────────────────
 async Task PowerOnAsync(
     HttpClient http,
-    HttpClient simHttp,
     List<ParkMeterInfo> pms,
     Dictionary<Guid, ParkMeterSimulator> sims,
     Dictionary<Guid, Task> tasks,
@@ -333,7 +327,9 @@ async Task RunTestModeAsync(
         AlertType.DOOR_OPEN |
         AlertType.HARDWARE_FAILURE |
         AlertType.POWER_FAILURE |
-        AlertType.CONNECTION_LOST;   
+        AlertType.CONNECTION_LOST |
+        AlertType.CASH_BOX_REMOVED;
+   
 
     // select source ─────────────────────────
     PrintTestSourceMenu(pms, sims);

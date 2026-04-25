@@ -1,41 +1,43 @@
 ﻿using MediatR;
-using parkmeter_management.Application
-    .Interfaces.Repositories;
-using parkmeter_management.Application
-    .Interfaces.Services;
+using parkmeter_management.Application.Interfaces.Repositories;
+using parkmeter_management.Application.Interfaces.Services;
+using parkmeter_management.Domain.Entities;
 using parkmeter_management.Domain.Enums;
+using System.Text.Json;
 
-namespace parkmeter_management.SimulatorApplication
-    .Commands.HandlePaperRefilled
+namespace parkmeter_management.Application.Commands.Mqtt.HandlePaperRefilled
 {
     public class HandlePaperRefilledCommandHandler
         : IRequestHandler<HandlePaperRefilledCommand, bool>
     {
         private readonly IAlertRepository _alertRepository;
         private readonly IParkmeterRepository _parkmeterRepository;
-        private readonly IInterventionOrderRepository _interventionOrderRepository;
         private readonly IMqttPublisherService _mqttPublisher;
-        private readonly INotificationService _notificationService;
+        private readonly IInterventionOrderRepository _interventionOrderRepository; // ← add
+        private readonly INotificationService _notificationService; // ← add
 
         public HandlePaperRefilledCommandHandler(
             IAlertRepository alertRepository,
             IParkmeterRepository parkmeterRepository,
-            IInterventionOrderRepository interventionOrderRepository,
             IMqttPublisherService mqttPublisher,
-            INotificationService notificationService)
+            IInterventionOrderRepository interventionOrderRepository, // ← add
+            INotificationService notificationService) // ← add
         {
             _alertRepository = alertRepository;
             _parkmeterRepository = parkmeterRepository;
-            _interventionOrderRepository = interventionOrderRepository;
             _mqttPublisher = mqttPublisher;
-            _notificationService = notificationService;
+            _interventionOrderRepository = interventionOrderRepository; // ← add
+            _notificationService = notificationService; // ← add
         }
 
         public async Task<bool> Handle(
             HandlePaperRefilledCommand command,
             CancellationToken ct)
         {
-            var parkmeterID = command.ParkmeterId;
+            var raw = JsonSerializer
+                .Deserialize<JsonElement>(command.Payload);
+            var parkmeterID = Guid.Parse(
+                raw.GetProperty("ParkmeterId").GetString()!);
 
             // auto-resolve paper alerts
             var alerts = await _alertRepository
@@ -51,26 +53,25 @@ namespace parkmeter_management.SimulatorApplication
                 Console.WriteLine($"Auto-resolved: {a.Type}");
             }
 
-            // auto-complete intervention order
-            var order = await _interventionOrderRepository
+            // auto-complete intervention order ← ADD
+            var pendingOrder = await _interventionOrderRepository
                 .GetPendingByParkmeterAndTypeAsync(
                     parkmeterID,
                     InterventionType.PAPER_REFILL);
 
-            if (order != null)
+            if (pendingOrder != null)
             {
-                order.Status = InterventionOrderStatus.COMPLETED;
-                order.CompletedAt = DateTime.UtcNow;
+                pendingOrder.Status = InterventionOrderStatus.COMPLETED;
+                pendingOrder.CompletedAt = DateTime.UtcNow;
                 await _interventionOrderRepository
-                    .UpdateAsync(order);
+                    .UpdateAsync(pendingOrder);
+                Console.WriteLine($"✅ Paper refill order completed");
 
                 await _notificationService
                     .NotifyInterventionOrderCompleted(
-                        order.Id,
+                        pendingOrder.Id,
                         parkmeterID,
-                        order.CompletedAt.Value);
-
-                Console.WriteLine("✅ Paper refill order completed");
+                        pendingOrder.CompletedAt.Value);
             }
 
             // check stillBlocked
@@ -82,29 +83,44 @@ namespace parkmeter_management.SimulatorApplication
                  a.Type == AlertType.HARDWARE_FAILURE ||
                  a.Type == AlertType.DOOR_OPEN));
 
-            var otherOrder = await _interventionOrderRepository
-                .GetPendingByParkmeterAndTypeAsync(
-                    parkmeterID,
-                    InterventionType.CASH_COLLECTION);
-
+            // revert to IN_SERVICE ← update condition
             var parkmeter = await _parkmeterRepository
                 .GetByIdAsync(parkmeterID);
 
-            if (!stillBlocked &&
-                parkmeter != null &&
-                otherOrder == null &&
+            // Check if cash collection order pending:
+            var anyOtherPendingOrder = await _interventionOrderRepository
+                .GetPendingByParkmeterAndTypeAsync(
+                    parkmeterID,
+                    InterventionType.CASH_COLLECTION); // check cash order
+
+            if (!stillBlocked && parkmeter != null &&
                 (parkmeter.Status ==
                     MeterStatus.TEMPORARILY_UNAVAILABLE ||
                  parkmeter.Status ==
-                    MeterStatus.MAINTENANCE))
+                    MeterStatus.MAINTENANCE) &&
+                 anyOtherPendingOrder == null) // only if no other pending ✅
             {
                 parkmeter.Status = MeterStatus.IN_SERVICE;
                 await _parkmeterRepository.UpdateAsync(parkmeter);
                 await _mqttPublisher.PublishStatusAsync(
                     parkmeterID,
                     MeterStatus.IN_SERVICE.ToString());
-                Console.WriteLine("✅ IN_SERVICE");
+                Console.WriteLine(
+                    $"{parkmeter.SerialNumber} : IN_SERVICE");
             }
+
+            // save resolved alert
+            await _alertRepository.AddAsync(new Alert
+            {
+                Id = Guid.NewGuid(),
+                ParkmeterId = parkmeterID,
+                Type = AlertType.PAPER_REFILLED,
+                Priority = Priority.LOW,
+                Description = "Paper refilled by agent",
+                Status = AlertStatus.RESOLVED,
+                CreatedAt = DateTime.UtcNow,
+                ResolvedAt = DateTime.UtcNow
+            });
 
             return true;
         }

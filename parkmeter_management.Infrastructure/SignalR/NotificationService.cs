@@ -7,13 +7,16 @@ namespace parkmeter_management.Infrastructure.SignalR
     {
         private readonly IHubContext<ParkMeterHub> _hubContext;
 
-        public NotificationService(IHubContext<ParkMeterHub> hubContext)
+        public NotificationService(
+            IHubContext<ParkMeterHub> hubContext)
         {
             _hubContext = hubContext;
         }
 
         public async Task NotifyNewAlert(
-            Guid parkmeterID, string alertType, string priority)
+            Guid parkmeterID,
+            string alertType,
+            string priority)
         {
             await _hubContext.Clients.All.SendAsync(
                 "NewAlert", new
@@ -26,7 +29,8 @@ namespace parkmeter_management.Infrastructure.SignalR
         }
 
         public async Task NotifyAlertResolved(
-            Guid alertId, Guid parkmeterID)
+            Guid alertId,
+            Guid parkmeterID)
         {
             await _hubContext.Clients.All.SendAsync(
                 "AlertResolved", new
@@ -38,7 +42,8 @@ namespace parkmeter_management.Infrastructure.SignalR
         }
 
         public async Task NotifyStatusChanged(
-            Guid parkmeterID, string newStatus)
+            Guid parkmeterID,
+            string newStatus)
         {
             await _hubContext.Clients.All.SendAsync(
                 "StatusChanged", new
@@ -50,7 +55,9 @@ namespace parkmeter_management.Infrastructure.SignalR
         }
 
         public async Task NotifyNewTransaction(
-            Guid parkmeterID, decimal amount, string status)
+            Guid parkmeterID,
+            decimal amount,
+            string status)
         {
             await _hubContext.Clients.All.SendAsync(
                 "NewTransaction", new
@@ -63,7 +70,9 @@ namespace parkmeter_management.Infrastructure.SignalR
         }
 
         public async Task NotifySessionClosed(
-            Guid parkmeterID, decimal totalAmount, int totalTransactions)
+            Guid parkmeterID,
+            decimal totalAmount,
+            int totalTransactions)
         {
             await _hubContext.Clients.All.SendAsync(
                 "SessionClosed", new
@@ -75,8 +84,11 @@ namespace parkmeter_management.Infrastructure.SignalR
                 });
         }
 
+
         public async Task NotifyInterventionOrderCreated(
-            Guid operatorId, Guid parkmeterID, Guid orderId)
+            Guid operatorId,
+            Guid parkmeterID,
+            Guid orderId)
         {
             await _hubContext.Clients.All.SendAsync(
                 "InterventionOrderCreated", new
@@ -89,7 +101,9 @@ namespace parkmeter_management.Infrastructure.SignalR
         }
 
         public async Task NotifyInterventionOrderCompleted(
-            Guid orderId, Guid parkmeterID, DateTime completedAt)
+            Guid orderId,
+            Guid parkmeterID,
+            DateTime completedAt)
         {
             await _hubContext.Clients.All.SendAsync(
                 "InterventionOrderCompleted", new
@@ -100,17 +114,6 @@ namespace parkmeter_management.Infrastructure.SignalR
                 });
         }
 
-        // NEW — notifies frontend when a machine event is recorded
-        public async Task NotifyNewEvent(
-            Guid parkmeterID, string eventType)
-        {
-            await _hubContext.Clients.All.SendAsync(
-                "NewEvent", new
-                {
-                    ParkmeterID = parkmeterID,
-                    EventType = eventType,
-                    Timestamp = DateTime.UtcNow
-                });
-        }
+
     }
 }

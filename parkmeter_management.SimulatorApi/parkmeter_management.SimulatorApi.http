@@ -1,6 +1,0 @@
-@parkmeter_management.SimulatorApi_HostAddress = http://localhost:5119
-
-GET {{parkmeter_management.SimulatorApi_HostAddress}}/weatherforecast/
-Accept: application/json
-
-###

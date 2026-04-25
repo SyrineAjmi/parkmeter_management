@@ -34,11 +34,6 @@
             Guid orderId,
             Guid parkmeterID,
             DateTime completedAt);
-
-        // notifies the frontend that a machine event was recorded
-        // e.g. CASH_COLLECTED, PAPER_REFILLED, DOOR_CLOSED
-        Task NotifyNewEvent(
-            Guid parkmeterID,
-            string eventType);
     }
-}
+   
+    }

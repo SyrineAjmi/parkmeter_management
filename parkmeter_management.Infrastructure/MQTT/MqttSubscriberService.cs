@@ -3,10 +3,12 @@ using Microsoft.Extensions.DependencyInjection;
 using MQTTnet;
 using MQTTnet.Client;
 using parkmeter_management.Application.Commands.Mqtt.HandleAlerts;
-using parkmeter_management.Application.Commands.Mqtt.HandleEvents;
+using parkmeter_management.Application.Commands.Mqtt.HandleCashRemoved;
+using parkmeter_management.Application.Commands.Mqtt.HandleDoorClosed;
+using parkmeter_management.Application.Commands.Mqtt.HandlePaperRefilled;
 using parkmeter_management.Application.Commands.Mqtt.HandleReconnected;
 using parkmeter_management.Application.Commands.Mqtt.HandleTransactions;
-using parkmeter_management.Application.Commands.Mqtt.HandleParkmeterOnline;
+using parkmeter_management.Application.Commands.Mqtt.HandleParkmeterOnline; 
 
 public class MqttSubscriberService
 {
@@ -30,45 +32,55 @@ public class MqttSubscriberService
         _client.ApplicationMessageReceivedAsync += async e =>
         {
             var topic = e.ApplicationMessage.Topic;
-            var payload = e.ApplicationMessage.ConvertPayloadToString();
+            var payload = e.ApplicationMessage
+                .ConvertPayloadToString();
 
             if (topic.EndsWith("/alerts"))
-                await RouteAsync(new HandleAlertMqttCommand
-                { Payload = payload });
-
-            else if (topic.EndsWith("/events"))
-                await RouteAsync(new HandleEventMqttCommand
-                { Payload = payload });
-
+                await RouteAsync(payload,
+                    new HandleAlertMqttCommand
+                    { Payload = payload });
             else if (topic.EndsWith("/transactions"))
-                await RouteAsync(new HandleTransactionMqttCommand
-                { Payload = payload });
-
+                await RouteAsync(payload,
+                    new HandleTransactionMqttCommand
+                    { Payload = payload });
+            else if (topic.EndsWith("/cash-removed"))
+                await RouteAsync(payload,
+                    new HandleCashRemovedCommand
+                    { Payload = payload });
+            else if (topic.EndsWith("/paper-refilled"))
+                await RouteAsync(payload,
+                    new HandlePaperRefilledCommand
+                    { Payload = payload });
+            else if (topic.EndsWith("/door-closed"))
+                await RouteAsync(payload,
+                    new HandleDoorClosedCommand
+                    { Payload = payload });
             else if (topic.EndsWith("/reconnected"))
-                await RouteAsync(new HandleReconnectedCommand
-                { Payload = payload });
-
+                await RouteAsync(payload,
+                    new HandleReconnectedCommand
+                    { Payload = payload });
             else if (topic.EndsWith("/online"))
-                await RouteAsync(new HandleParkmeterOnlineCommand
-                { Payload = payload });
-
+                await RouteAsync(payload,
+                    new HandleParkmeterOnlineCommand
+                    { Payload = payload });
             else
-                Console.WriteLine($"[MQTT] Unknown topic: {topic}");
+                Console.WriteLine($"Unknown topic: {topic}");
         };
 
         await _client.ConnectAsync(clientOptions);
-
-        // device → backend
         await _client.SubscribeAsync("parkmeters/+/alerts");
-        await _client.SubscribeAsync("parkmeters/+/events");       
         await _client.SubscribeAsync("parkmeters/+/transactions");
+        await _client.SubscribeAsync("parkmeters/+/cash-removed");
+        await _client.SubscribeAsync("parkmeters/+/paper-refilled");
+        await _client.SubscribeAsync("parkmeters/+/door-closed");
         await _client.SubscribeAsync("parkmeters/+/reconnected");
         await _client.SubscribeAsync("parkmeters/+/online");
 
         Console.WriteLine("Subscribed to parkmeter topics");
     }
 
-    private async Task RouteAsync(IRequest<bool> command)
+    private async Task RouteAsync(
+        string payload, IRequest<bool> command)
     {
         try
         {
@@ -80,7 +92,7 @@ public class MqttSubscriberService
         catch (Exception ex)
         {
             Console.WriteLine($"[ERROR] Routing: {ex.Message}");
-        }
+        } 
     }
 
     public async Task StopAsync()

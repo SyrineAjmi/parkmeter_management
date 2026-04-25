@@ -1,12 +1,11 @@
 ﻿using MediatR;
-using parkmeter_management.Application
-    .Interfaces.Repositories;
-using parkmeter_management.Application
-    .Interfaces.Services;
+using parkmeter_management.Application.Interfaces.Repositories;
+using parkmeter_management.Application.Interfaces.Services;
+using parkmeter_management.Domain.Entities;
 using parkmeter_management.Domain.Enums;
+using System.Text.Json;
 
-namespace parkmeter_management.SimulatorApplication
-    .Commands.HandleDoorClosed
+namespace parkmeter_management.Application.Commands.Mqtt.HandleDoorClosed
 {
     public class HandleDoorClosedCommandHandler
         : IRequestHandler<HandleDoorClosedCommand, bool>
@@ -14,27 +13,27 @@ namespace parkmeter_management.SimulatorApplication
         private readonly IAlertRepository _alertRepository;
         private readonly IParkmeterRepository _parkmeterRepository;
         private readonly IMqttPublisherService _mqttPublisher;
-        private readonly INotificationService _notificationService; // FIX #2
 
         public HandleDoorClosedCommandHandler(
             IAlertRepository alertRepository,
             IParkmeterRepository parkmeterRepository,
-            IMqttPublisherService mqttPublisher,
-            INotificationService notificationService) // FIX #2
+            IMqttPublisherService mqttPublisher)
         {
             _alertRepository = alertRepository;
             _parkmeterRepository = parkmeterRepository;
             _mqttPublisher = mqttPublisher;
-            _notificationService = notificationService; // FIX #2
         }
 
         public async Task<bool> Handle(
             HandleDoorClosedCommand command,
             CancellationToken ct)
         {
-            var parkmeterID = command.ParkmeterId;
+            var raw = JsonSerializer
+                .Deserialize<JsonElement>(command.Payload);
+            var parkmeterID = Guid.Parse(
+                raw.GetProperty("ParkmeterId").GetString()!);
 
-            // resolve door alert
+            // aut-resolve DOOR_OPEN
             var alerts = await _alertRepository
                 .GetByParkmeterAsync(parkmeterID);
             foreach (var a in alerts.Where(a =>
@@ -44,12 +43,7 @@ namespace parkmeter_management.SimulatorApplication
                 a.Status = AlertStatus.RESOLVED;
                 a.ResolvedAt = DateTime.UtcNow;
                 await _alertRepository.UpdateAsync(a);
-                Console.WriteLine($"Auto-resolved: {a.Type}");
-
-                // FIX #2 — notify frontend that the alert was resolved
-                await _notificationService.NotifyAlertResolved(
-                    a.Id,
-                    parkmeterID);
+                Console.WriteLine("Auto-resolved: DOOR_OPEN");
             }
 
             // check stillBlocked
@@ -61,28 +55,19 @@ namespace parkmeter_management.SimulatorApplication
                  a.Type == AlertType.PAPER_EMPTY ||
                  a.Type == AlertType.HARDWARE_FAILURE));
 
+            // if not blocked revert to IN_SERVICE 
             var parkmeter = await _parkmeterRepository
                 .GetByIdAsync(parkmeterID);
-
-            if (!stillBlocked &&
-                parkmeter != null &&
-                (parkmeter.Status ==
-                    MeterStatus.TEMPORARILY_UNAVAILABLE ||
-                 parkmeter.Status ==
-                    MeterStatus.MAINTENANCE))
+            if (!stillBlocked && parkmeter != null &&
+                parkmeter.Status == MeterStatus.TEMPORARILY_UNAVAILABLE)
             {
                 parkmeter.Status = MeterStatus.IN_SERVICE;
                 await _parkmeterRepository.UpdateAsync(parkmeter);
                 await _mqttPublisher.PublishStatusAsync(
                     parkmeterID,
                     MeterStatus.IN_SERVICE.ToString());
-
-                // FIX #2 — notify frontend of the status change
-                await _notificationService.NotifyStatusChanged(
-                    parkmeterID,
-                    MeterStatus.IN_SERVICE.ToString());
-
-                Console.WriteLine("✅ IN_SERVICE");
+                Console.WriteLine(
+                    $" {parkmeter.SerialNumber} : IN_SERVICE (door closed)");
             }
 
             return true;

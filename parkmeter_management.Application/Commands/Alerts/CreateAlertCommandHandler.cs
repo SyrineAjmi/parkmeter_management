@@ -12,19 +12,21 @@ namespace parkmeter_management.Application.Commands.Alerts
     {
         private readonly IAlertRepository _alertRepository;
         private readonly IParkmeterRepository _parkmeterRepository;
-        // FIX #1 — removed unused ISessionRepository
+        private readonly ISessionRepository _sessionRepository;
         private readonly IMqttPublisherService _mqttPublisher;
         private readonly INotificationService _notificationService;
+
 
         public CreateAlertCommandHandler(
             IAlertRepository alertRepository,
             IParkmeterRepository parkmeterRepository,
-            // FIX #1 — removed unused ISessionRepository parameter
+            ISessionRepository sessionRepository,
             IMqttPublisherService mqttPublisher,
             INotificationService notificationService)
         {
             _alertRepository = alertRepository;
             _parkmeterRepository = parkmeterRepository;
+            _sessionRepository = sessionRepository;
             _mqttPublisher = mqttPublisher;
             _notificationService = notificationService;
         }
@@ -45,7 +47,7 @@ namespace parkmeter_management.Application.Commands.Alerts
                 a.Status == AlertStatus.NOT_RESOLVED);
             if (isDuplicate) return Guid.Empty;
 
-            // operational alerts only valid when IN_SERVICE or TEMPORARILY_UNAVAILABLE
+            // IN_SERVICE operational alerts only 
             var operationalAlerts =
                 AlertType.CASH_BOX_WARN |
                 AlertType.CASH_BOX_FULL |
@@ -57,7 +59,7 @@ namespace parkmeter_management.Application.Commands.Alerts
                 && parkmeter.Status != MeterStatus.TEMPORARILY_UNAVAILABLE)
                 return Guid.Empty;
 
-            // blocking alerts → TEMPORARILY_UNAVAILABLE
+            // blocking alerts TEMPORARILY_UNAVAILABLE
             var blockingAlerts =
                 AlertType.CASH_BOX_FULL |
                 AlertType.PAPER_EMPTY |
@@ -74,7 +76,7 @@ namespace parkmeter_management.Application.Commands.Alerts
                     MeterStatus.TEMPORARILY_UNAVAILABLE.ToString());
             }
 
-            // POWER_FAILURE → OUT_OF_SERVICE
+            // POWER_FAILURE  OUT_OF_SERVICE
             if (command.Type.HasFlag(AlertType.POWER_FAILURE))
             {
                 parkmeter.Status = MeterStatus.OUT_OF_SERVICE;
@@ -84,7 +86,7 @@ namespace parkmeter_management.Application.Commands.Alerts
                     MeterStatus.OUT_OF_SERVICE.ToString());
             }
 
-            // save alert
+            // save alert 
             var alert = new Alert
             {
                 Id = Guid.NewGuid(),
