@@ -11,17 +11,17 @@ namespace parkmeter_management.Application.Commands.Parkmeters
     {
         private readonly IParkmeterRepository _parkmeterRepository;
         private readonly ISiteRepository _siteRepository;
-        private readonly IMqttPublisherService _mqttPublisher; 
+        //private readonly IMessagePublisherService _mqttPublisher; 
 
 
         public AddParkmeterCommandHandler(
             IParkmeterRepository parkmeterRepository,
-            ISiteRepository siteRepository,
-            IMqttPublisherService mqttPublisher)
+            ISiteRepository siteRepository)
+            //IMessagePublisherService mqttPublisher)
         {
             _parkmeterRepository = parkmeterRepository;
             _siteRepository = siteRepository;
-            _mqttPublisher = mqttPublisher; 
+            //_mqttPublisher = mqttPublisher; 
         }
 
     public async Task<Guid> Handle(
@@ -49,9 +49,9 @@ namespace parkmeter_management.Application.Commands.Parkmeters
     };
 
     await _parkmeterRepository.AddAsync(parkmeter);
-    await _mqttPublisher.PublishNewParkmeterAsync(
-           parkmeter.Id,
-           parkmeter.SerialNumber);
+    //await _mqttPublisher.PublishNewParkmeterAsync(
+    //       parkmeter.Id,
+    //       parkmeter.SerialNumber);
 
         return parkmeter.Id;
 }

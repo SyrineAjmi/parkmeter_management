@@ -14,29 +14,41 @@ namespace parkmeter_management.Infrastructure.Mqtt
                 .WithDefaultEndpointPort(1883)
                 .Build();
 
-            _mqttServer = new MqttFactory().CreateMqttServer(serverOptions);
+            _mqttServer = new MqttFactory()
+                .CreateMqttServer(serverOptions);
 
             _mqttServer.ClientConnectedAsync += e =>
             {
-                Console.WriteLine($"Client connected: {e.ClientId}");
+                Console.WriteLine(
+                    $"[BROKER] Client connected: {e.ClientId}");
                 return Task.CompletedTask;
             };
 
-            _mqttServer.InterceptingPublishAsync += e =>
+            _mqttServer.ClientDisconnectedAsync += e =>
             {
-                Console.WriteLine($"[{e.ApplicationMessage.Topic}] " +
-                    $"{e.ApplicationMessage.ConvertPayloadToString()}");
+                Console.WriteLine(
+                    $"[BROKER] Client disconnected: {e.ClientId}");
                 return Task.CompletedTask;
             };
 
-            await _mqttServer.StartAsync();
-            Console.WriteLine("Broker running on port 1883");
-        } 
+            try
+            {
+                await _mqttServer.StartAsync();
+                Console.WriteLine("[BROKER] Running on port 1883");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[BROKER ERROR] Failed to start: {ex.Message}");
+                throw;
+            }
+        }
 
         public async Task StopAsync()
         {
             if (_mqttServer != null)
                 await _mqttServer.StopAsync();
+
+            Console.WriteLine("[BROKER] Stopped");
         }
     }
 }

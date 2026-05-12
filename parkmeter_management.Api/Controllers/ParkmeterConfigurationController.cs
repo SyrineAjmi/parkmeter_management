@@ -6,7 +6,6 @@ using parkmeter_management.Application.Managers.Interfaces;
 
 namespace parkmeter_management.Api.Controllers
 {
-
     [ApiController]
     [Route("api/[controller]")]
     public class ParkmeterConfigurationController : ControllerBase
@@ -19,11 +18,11 @@ namespace parkmeter_management.Api.Controllers
             _configurationManager = configurationManager;
         }
 
-
         //----------------------------------------------------------
 
         [HttpGet("{parkmeterId}")]
-        public async Task<IActionResult> GetConfiguration(Guid parkmeterId)
+        public async Task<IActionResult> GetConfiguration(
+            Guid parkmeterId)
         {
             var config = await _configurationManager
                 .GetConfiguration(parkmeterId);
@@ -40,8 +39,14 @@ namespace parkmeter_management.Api.Controllers
         {
             var result = await _configurationManager.CreateConfig(
                 request.ParkmeterId,
+                request.MaxDuration,
+                request.StrategyType,
                 request.PricePerHour,
-                request.MaxDuration);
+                request.PeakRate,
+                request.OffPeakRate,
+                request.WeekdayRate,
+                request.WeekendRate);
+
             return Ok("Config created and sent to parkmeter");
         }
 
@@ -54,9 +59,17 @@ namespace parkmeter_management.Api.Controllers
         {
             var result = await _configurationManager.UpdateConfig(
                 request.ParkmeterId,
+                request.MaxDuration,
+                request.StrategyType,
                 request.PricePerHour,
-                request.MaxDuration);
-            if (!result) return NotFound("Config not found for this parkmeter");
+                request.PeakRate,
+                request.OffPeakRate,
+                request.WeekdayRate,
+                request.WeekendRate);
+
+            if (!result)
+                return NotFound("Config not found for this parkmeter");
+
             return Ok("Config updated and sent to parkmeter");
         }
 
@@ -66,7 +79,8 @@ namespace parkmeter_management.Api.Controllers
         [HttpDelete("{parkmeterId}")]
         public async Task<IActionResult> DeleteConfig(Guid parkmeterId)
         {
-            var result = await _configurationManager.DeleteConfig(parkmeterId);
+            var result = await _configurationManager
+                .DeleteConfig(parkmeterId);
             if (!result) return NotFound();
             return Ok("Config deleted");
         }
@@ -75,13 +89,15 @@ namespace parkmeter_management.Api.Controllers
 
         [Authorize(Roles = "AGENT_INSTALLATION")]
         [HttpPost("{parkmeterId}/apply")]
-        public async Task<IActionResult> ApplyToParkmeter(Guid parkmeterId)
+        public async Task<IActionResult> ApplyToParkmeter(
+            Guid parkmeterId)
         {
             var result = await _configurationManager
                 .ApplyToParkmeter(parkmeterId);
-            if (!result) return NotFound("No config found for this parkmeter");
+            if (!result)
+                return NotFound("No config found for this parkmeter");
+
             return Ok("Config re-applied to parkmeter");
         }
     }
-
 }

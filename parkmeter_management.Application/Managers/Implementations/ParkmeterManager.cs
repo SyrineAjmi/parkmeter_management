@@ -1,6 +1,5 @@
 ﻿using MediatR;
 using parkmeter_management.Application.Commands.Parkmeters;
-using parkmeter_management.Application.Interfaces.Repositories;
 using parkmeter_management.Application.Managers.Interfaces;
 using parkmeter_management.Application.Queries.Parkmeters;
 using parkmeter_management.Domain.Entities;
@@ -11,14 +10,11 @@ namespace parkmeter_management.Application.Managers.Implementations
     public class ParkmeterManager : IParkmeterManager
     {
         private readonly IMediator _mediator;
-        private readonly IParkmeterRepository _parkmeterRepository;
 
         public ParkmeterManager(
-            IMediator mediator,
-            IParkmeterRepository parkmeterRepository)
+            IMediator mediator)
         {
             _mediator = mediator;
-            _parkmeterRepository = parkmeterRepository;
         }
 
         public async Task<Guid> AddParkmeter(string serialNumber, Guid siteId)
@@ -29,15 +25,19 @@ namespace parkmeter_management.Application.Managers.Implementations
             });
 
         public async Task<bool> AssignToSite(Guid parkmeterId, Guid siteId)
-        {
-            var parkmeter = await _parkmeterRepository
-                .GetByIdAsync(parkmeterId);
-            if (parkmeter == null) return false;
+               => await _mediator.Send(new AssignSiteCommand
+               {
+                   ParkmeterId = parkmeterId,
+                   SiteId = siteId
+               });
 
-            parkmeter.SiteId = siteId;
-            await _parkmeterRepository.UpdateAsync(parkmeter);
-            return true;
-        }
+
+        public async Task<List<Parkmeter>> GetBySite(Guid siteId)
+       => await _mediator.Send(new GetParkmetersBySiteQuery
+       {
+           SiteId = siteId
+       });
+
 
         public async Task<bool> ChangeStatus(
             Guid parkmeterId, MeterStatus newStatus)
@@ -53,12 +53,7 @@ namespace parkmeter_management.Application.Managers.Implementations
         public async Task<Parkmeter?> GetById(Guid id)
             => await _mediator.Send(new GetParkmeterByIdQuery { Id = id });
 
-        public async Task<List<Parkmeter>> GetBySite(Guid siteId)
-        {
-            var parkmeters = await _parkmeterRepository
-                .GetBySiteAsync(siteId);
-            return parkmeters.ToList();
-        }
+
 
         public async Task<List<Parkmeter>> FilterByStatus(MeterStatus status)
             => await _mediator.Send(

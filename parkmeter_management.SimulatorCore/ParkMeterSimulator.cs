@@ -20,7 +20,7 @@ namespace parkmeter_management.SimulatorCore
         private readonly Random _random = new(); // for random
         private IMqttClient? _client;
 
-        public ParkMeterSimulator(ParkMeterState state) // state shared across all meths
+        public ParkMeterSimulator(ParkMeterState state) // state shared across all methods
         {
             _state = state;
         }
@@ -42,10 +42,12 @@ namespace parkmeter_management.SimulatorCore
         public bool PaperAlertSent => _state.PaperAlertSent;
         public bool PaperEmptyAlertSent => _state.PaperEmptyAlertSent;
         public string SerialNumber => _state.SerialNumber;
+        public string StrategyType => _state.StrategyType;
+
 
         //----------------------------------------------------------
 
-        //  lifecycle
+        // lifecycle
         // start
         public async Task RunAsync(CancellationToken ct = default)
         {
@@ -55,7 +57,7 @@ namespace parkmeter_management.SimulatorCore
 
                 if (!await ConnectWithRetryAsync(ct)) return;
 
-                RegisterMessageListener();
+                RegisterMessageListener(ct);
 
                 await _client.SubscribeAsync(
                     $"parkmeters/{_state.Id}/config",
@@ -68,35 +70,19 @@ namespace parkmeter_management.SimulatorCore
                 // publish reconnected if CONNECTION_LOST
                 if (_state.WasConnectionLost)
                 {
-                    _state.WasConnectionLost = false;
-                    await PublishAsync(
-                        $"parkmeters/{_state.Id}/reconnected",
-                        new
-                        {
-                            ParkmeterId = _state.Id.ToString(),
-                            CreatedAt = DateTime.UtcNow
-                        });
+                    await PublishEventAsync(MachineEventType.MACHINE_RECONNECTED);
+                    _state.WasConnectionLost = false; 
                     Log("Reconnected → notified backend",
                         ConsoleColor.Green);
                 }
                 else
                 {
-                    // publish online on first start ✅
-                    await PublishAsync(
-                        $"parkmeters/{_state.Id}/online",
-                        new
-                        {
-                            ParkmeterId = _state.Id.ToString(),
-                            CreatedAt = DateTime.UtcNow
-                        });
+                    // publish online on first start
+                    await PublishEventAsync(MachineEventType.MACHINE_ONLINE);
+
                     Log("Online → notified backend",
                         ConsoleColor.Green);
                 }
-
-                Log($"Simulation started | " +
-                    $"Price: {_state.PricePerHour} DT/h | " +
-                    $"Max: {_state.MaxDuration} min",
-                    ConsoleColor.White);
 
                 await RunSimulationLoopAsync(ct);
 
@@ -135,16 +121,6 @@ namespace parkmeter_management.SimulatorCore
         // test mode
         public async Task TriggerAlertAsync(AlertType alertType)
         {
-            // Set realistic state before sending
-            if (alertType.HasFlag(AlertType.CASH_BOX_FULL))
-                _state.CashLevel = 100;
-            if (alertType.HasFlag(AlertType.CASH_BOX_WARN))
-                _state.CashLevel = 65;
-            if (alertType.HasFlag(AlertType.PAPER_EMPTY))
-                _state.PaperLevel = 0;
-            if (alertType.HasFlag(AlertType.PAPER_LOW))
-                _state.PaperLevel = 15;
-
             await SendAlertAndUpdateStateAsync(alertType);
             Log($"[TEST] Triggered: {alertType} ({(int)alertType})",
                 ConsoleColor.Magenta);
@@ -152,7 +128,7 @@ namespace parkmeter_management.SimulatorCore
 
         //----------------------------------------------------------
 
-        //   agent actions 
+        //   operator actions 
         public async Task EmptyCashBoxAsync()
         {
             _state.CashLevel = 0;
@@ -161,13 +137,7 @@ namespace parkmeter_management.SimulatorCore
             _state.DoorOpen = false;
 
             // specific topic 
-            await PublishAsync(
-                $"parkmeters/{_state.Id}/cash-removed",
-                new
-                {
-                    ParkmeterId = _state.Id.ToString(),
-                    CreatedAt = DateTime.UtcNow
-                });
+            await PublishEventAsync(MachineEventType.CASH_COLLECTED);
 
             Log("Cash box emptied → transactions will resume",
                 ConsoleColor.Green);
@@ -182,13 +152,7 @@ namespace parkmeter_management.SimulatorCore
             _state.DoorOpen = false;
 
             // specofic topic
-            await PublishAsync(
-                $"parkmeters/{_state.Id}/paper-refilled",
-                new
-                {
-                    ParkmeterId = _state.Id.ToString(),
-                    CreatedAt = DateTime.UtcNow
-                });
+            await PublishEventAsync(MachineEventType.PAPER_REFILLED);
 
             Log("Paper refilled : transactions will resume",
                 ConsoleColor.Green);
@@ -199,13 +163,8 @@ namespace parkmeter_management.SimulatorCore
             _state.DoorOpen = false;
 
             // notify backend door is close
-            await PublishAsync(
-                $"parkmeters/{_state.Id}/door-closed", 
-                new
-                {
-                    ParkmeterId = _state.Id.ToString(),
-                    CreatedAt = DateTime.UtcNow
-                });
+            await PublishEventAsync(MachineEventType.DOOR_CLOSED);
+
 
             Log("Door closed..",
                 ConsoleColor.Green);
@@ -244,9 +203,22 @@ namespace parkmeter_management.SimulatorCore
         }
 
         // listen for backend messages 
-        private void RegisterMessageListener()
+        private void RegisterMessageListener(CancellationToken ct)
         {
-            _client!.ApplicationMessageReceivedAsync += e => // event based
+            _client!.DisconnectedAsync += async e =>
+            {
+                if (ct.IsCancellationRequested) return;
+                if (_state.IsOffline && !_state.IsConnectionLost) return;
+
+                Log("Unexpected disconnection — will reconnect...",
+                    ConsoleColor.Yellow);
+
+                _state.IsConnectionLost = true;
+                _state.IsOffline = true;
+                _state.WasConnectionLost = true;
+            };
+
+            _client!.ApplicationMessageReceivedAsync += e => 
             {
                 var topic = e.ApplicationMessage.Topic;
                 var payload = e.ApplicationMessage.ConvertPayloadToString();
@@ -270,18 +242,52 @@ namespace parkmeter_management.SimulatorCore
         private void ApplyConfig(string payload)
         {
             var raw = JsonSerializer.Deserialize<JsonElement>(payload);
-            var newPrice = raw.GetProperty("PricePerHour").GetDecimal();
-            var newMax = raw.GetProperty("MaxDuration").GetInt32();
 
-            Log($"Config received: " +
-                $"{_state.PricePerHour} to {newPrice} DT/h | " +
-                $"{_state.MaxDuration} to {newMax} min",
-                ConsoleColor.Cyan);
+            _state.MaxDuration = raw
+                .GetProperty("maxDuration").GetInt32();
 
-            _state.PricePerHour = newPrice;
-            _state.MaxDuration = newMax;
+            var pricing = raw.GetProperty("pricing");
+            _state.StrategyType = pricing
+                .GetProperty("strategy").GetString()!;
+
+            var parameters = pricing.GetProperty("parameters");
+
+            // reset rates
+            _state.PricePerHour = 0;
+            _state.PeakRate = 0;
+            _state.OffPeakRate = 0;
+            _state.WeekdayRate = 0;
+            _state.WeekendRate = 0;
+
+            switch (_state.StrategyType)
+            {
+                case "FLAT_RATE":
+                    _state.PricePerHour = parameters
+                        .GetProperty("pricePerHour").GetDecimal();
+                    break;
+
+                case "TIME_OF_DAY":
+                    _state.PeakRate = parameters
+                        .GetProperty("peakRate").GetDecimal();
+                    _state.OffPeakRate = parameters
+                        .GetProperty("offPeakRate").GetDecimal();
+                    break;
+
+                case "WEEKDAY_WEEKEND":
+                    _state.WeekdayRate = parameters
+                        .GetProperty("weekdayRate").GetDecimal();
+                    _state.WeekendRate = parameters
+                        .GetProperty("weekendRate").GetDecimal();
+                    break;
+            }
+
             _state.HasConfig = true;
+
+            Log($"Config received: Strategy={_state.StrategyType} | " +
+                $"MaxDuration={_state.MaxDuration} min",
+                ConsoleColor.Cyan);
         }
+
 
         private void ApplyStatus(string payload)
         {
@@ -295,6 +301,7 @@ namespace parkmeter_management.SimulatorCore
                 _state.IsOffline = false;
                 _state.HardwareFailure = false;
                 _state.DoorOpen = false;
+                _state.PowerFailureAlertSent = false; 
 
                 // reset cash if was blocked
                 if (_state.CashBoxAlertSent)
@@ -334,7 +341,6 @@ namespace parkmeter_management.SimulatorCore
             {
                 try
                 {
-                    // chek if offline
                     if (_state.IsOffline)
                     {
                         Log("Disconnecting from broker...", ConsoleColor.Red);
@@ -342,23 +348,27 @@ namespace parkmeter_management.SimulatorCore
                         return;
                     }
 
-                    // handle current status
                     if (!_state.HasConfig)
+                    {
                         Log("No configuration — waiting for config push...",
                             ConsoleColor.Yellow);
+                    }
                     else
+                    {
                         await HandleCurrentStatusAsync();
+                        await CheckAndSendAlertsAsync();
+                    }
 
-                    // check alerts every tick
-                    await CheckAndSendAlertsAsync();
-
-                    // wait before next tick
                     await Task.Delay(
                         _random.Next(
                             _state.MinTickDelayMs,
                             _state.MaxTickDelayMs), ct);
                 }
-                catch (OperationCanceledException) { break; }
+                catch (OperationCanceledException)
+                {
+                    await StopAsync();
+                    return;
+                }
             }
         }
 
@@ -430,13 +440,15 @@ namespace parkmeter_management.SimulatorCore
         //  transactions 
 
         private async Task<(decimal amount, int duration, TransactionStatus status)>
-            SendTransactionAsync()
+        SendTransactionAsync()
         {
             var duration = _random.Next(15, _state.MaxDuration);
-            var amount = Math.Round(
-                _state.PricePerHour * duration / 60, 2);
+            var now = DateTime.UtcNow;
+            var status = GetTransactionStatus();
 
-            var status = GetTransactionStatus(); // random mostly COMPLETED
+            var amount = status == TransactionStatus.COMPLETED
+                ? CalculateAmount(duration, now)
+                : 0;
 
             await PublishAsync(
                 $"parkmeters/{_state.Id}/transactions",
@@ -446,7 +458,7 @@ namespace parkmeter_management.SimulatorCore
                     Amount = amount,
                     Duration = duration,
                     Status = status.ToString(),
-                    CreatedAt = DateTime.UtcNow
+                    CreatedAt = now
                 });
 
             return (amount, duration, status);
@@ -472,9 +484,7 @@ namespace parkmeter_management.SimulatorCore
                 : ConsoleColor.Yellow;
 
             Log($"Transaction: {amount} DT / {duration} min | " +
-                $"Status: {status} | " +
-                $"Cash: {Math.Min(_state.CashLevel, 100)}% | " +
-                $"Paper: {Math.Max(_state.PaperLevel, 0)}%",
+                $"Status: {status} | " + $"Cash: {_state.CashLevel}% | Paper: {_state.PaperLevel}%",
                 color);
         }
 
@@ -482,18 +492,19 @@ namespace parkmeter_management.SimulatorCore
         {
             _state.TransactionCount++;
 
-            // only fill cash and use paper on completed transactions
-            if (status == TransactionStatus.COMPLETED) 
+            if (status == TransactionStatus.COMPLETED)
             {
-                _state.CashLevel += _random.Next(
-                    _state.CashFillPerTick - 2,
-                    _state.CashFillPerTick + 5);
-                _state.PaperLevel -= _random.Next(
-                    _state.PaperUsePerTick - 1,
-                    _state.PaperUsePerTick + 2);
+                _state.CashLevel = Math.Min(100,
+                    _state.CashLevel + _random.Next(
+                        _state.CashFillPerTick - 2,
+                        _state.CashFillPerTick + 5));
+
+                _state.PaperLevel = Math.Max(0,
+                    _state.PaperLevel - _random.Next(
+                        _state.PaperUsePerTick - 1,
+                        _state.PaperUsePerTick + 2));
             }
         }
-
 
         //----------------------------------------------------------
 
@@ -537,8 +548,11 @@ namespace parkmeter_management.SimulatorCore
         // random failures (avg 1 hardw failure every 2H)
         private async Task CheckRandomHardwareAsync()
         {
-            if (_random.Next(HARDWARE_FAILURE_CHANCE) == 0)
-                await SendAlertAndUpdateStateAsync(AlertType.HARDWARE_FAILURE);
+            {
+                if (!_state.HardwareFailure &&
+                    _random.Next(HARDWARE_FAILURE_CHANCE) == 0)
+                    await SendAlertAndUpdateStateAsync(AlertType.HARDWARE_FAILURE);
+            }
         }
 
 
@@ -549,47 +563,36 @@ namespace parkmeter_management.SimulatorCore
             UpdateLocalState(alertType); // update local state
         }
 
-        private void UpdateLocalState(AlertType alertType) // for each alert type : update the right flags
+        private void UpdateLocalState(AlertType alertType) 
         {
-            // cash box
+
             if (alertType.HasFlag(AlertType.CASH_BOX_WARN))
             {
+                _state.CashLevel = Math.Max(_state.CashLevel, 65); 
                 _state.CashBoxWarnSent = true;
-                Log($"CASH_BOX_WARN ({_state.CashLevel}%)",
-                    ConsoleColor.Yellow);
+                Log($"CASH_BOX_WARN ({_state.CashLevel}%)", ConsoleColor.Yellow);
             }
 
             if (alertType.HasFlag(AlertType.CASH_BOX_FULL))
             {
                 _state.CashLevel = 100;
-                _state.CashBoxWarnSent = true; 
+                _state.CashBoxWarnSent = true;
                 _state.CashBoxAlertSent = true;
-                Log($"CASH_BOX_FULL ({_state.CashLevel}%) : transactions stopped",
-                    ConsoleColor.Red);
+                Log($"CASH_BOX_FULL ({_state.CashLevel}%)", ConsoleColor.Red);
             }
 
-            if (alertType.HasFlag(AlertType.CASH_BOX_REMOVED))
-            {
-                _state.CashLevel = 0;
-                _state.CashBoxWarnSent = false;
-                _state.CashBoxAlertSent = false;
-                Log("CASH_BOX_REMOVED → cash reset to 0",
-                    ConsoleColor.Green);
-            }
-
-            // paper
             if (alertType.HasFlag(AlertType.PAPER_LOW))
             {
+                _state.PaperLevel = Math.Min(_state.PaperLevel, 15); 
                 _state.PaperAlertSent = true;
-                Log($"PAPER_LOW ({_state.PaperLevel}%)",
-                    ConsoleColor.Yellow);
+                Log($"PAPER_LOW ({_state.PaperLevel}%)", ConsoleColor.Yellow);
             }
 
             if (alertType.HasFlag(AlertType.PAPER_EMPTY))
             {
+                _state.PaperLevel = 0;
                 _state.PaperEmptyAlertSent = true;
-                Log("PAPER_EMPTY : transactions stopped",
-                    ConsoleColor.Red);
+                Log("PAPER_EMPTY : transactions stopped", ConsoleColor.Red);
             }
 
             // hardware
@@ -607,11 +610,12 @@ namespace parkmeter_management.SimulatorCore
                     ConsoleColor.Yellow);
             }
 
-            // power/network
             if (alertType.HasFlag(AlertType.POWER_FAILURE))
             {
+                if (_state.PowerFailureAlertSent) return; 
+                _state.PowerFailureAlertSent = true;
                 _state.IsOffline = true;
-                _state.IsConnectionLost = false; 
+                _state.IsConnectionLost = false;
                 Log("POWER_FAILURE : going offline...", ConsoleColor.Red);
             }
 
@@ -623,6 +627,41 @@ namespace parkmeter_management.SimulatorCore
                 Log("CONNECTION_LOST : disconnecting, will reconnect...",
                     ConsoleColor.Yellow);
             }
+        }
+
+
+        private async Task PublishEventAsync(MachineEventType eventType)
+        {
+            var envelope = new
+            {
+                ParkmeterId = _state.Id.ToString(),
+                EventType = (int)eventType,
+                CreatedAt = DateTime.UtcNow.ToString("O")
+            };
+
+            await PublishAsync(
+                $"parkmeters/{_state.Id}/events", envelope);
+        }
+
+
+        // helper for calcul amount 
+        private decimal CalculateAmount(int durationMinutes, DateTime time)
+        {
+            return _state.StrategyType switch
+            {
+                "TIME_OF_DAY" =>
+                    time.Hour >= 8 && time.Hour < 18
+                        ? Math.Round(_state.PeakRate * durationMinutes / 60, 3)
+                        : Math.Round(_state.OffPeakRate * durationMinutes / 60, 3),
+
+                "WEEKDAY_WEEKEND" =>
+                    time.DayOfWeek == DayOfWeek.Saturday ||
+                    time.DayOfWeek == DayOfWeek.Sunday
+                        ? Math.Round(_state.WeekendRate * durationMinutes / 60, 3)
+                        : Math.Round(_state.WeekdayRate * durationMinutes / 60, 3),
+
+                _ => Math.Round(_state.PricePerHour * durationMinutes / 60, 3)
+            };
         }
 
         //----------------------------------------------------------
@@ -640,18 +679,37 @@ namespace parkmeter_management.SimulatorCore
                 });
         }
 
-
         private async Task PublishAsync(string topic, object payload)
         {
-            var message = new MqttApplicationMessageBuilder()
-                .WithTopic(topic)
-                .WithPayload(JsonSerializer.Serialize(payload))
-                .WithQualityOfServiceLevel(
-                    MQTTnet.Protocol.MqttQualityOfServiceLevel
-                    .AtLeastOnce)
-                .Build();
+            if (_client?.IsConnected != true)
+            {
+                Log($"[WARN] Cannot publish — not connected",
+                    ConsoleColor.Yellow);
+                return;
+            }
 
-            await _client!.PublishAsync(message);
+            try
+            {
+                var message = new MqttApplicationMessageBuilder()
+                    .WithTopic(topic)
+                    .WithPayload(JsonSerializer.Serialize(payload))
+                    .WithQualityOfServiceLevel(
+                        MQTTnet.Protocol.MqttQualityOfServiceLevel
+                        .AtLeastOnce)
+                    .Build();
+
+                await _client!.PublishAsync(message);
+            }
+            catch (Exception ex)
+            {
+                Log($"[WARN] Publish failed: {ex.Message}",
+                    ConsoleColor.Yellow);
+
+                // trigger reconnection
+                _state.IsConnectionLost = true;
+                _state.IsOffline = true;
+                _state.WasConnectionLost = true;
+            }
         }
 
         //----------------------------------------------------------
@@ -668,3 +726,4 @@ namespace parkmeter_management.SimulatorCore
     }
 
 }
+

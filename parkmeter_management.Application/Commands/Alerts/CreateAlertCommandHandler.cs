@@ -13,7 +13,7 @@ namespace parkmeter_management.Application.Commands.Alerts
         private readonly IAlertRepository _alertRepository;
         private readonly IParkmeterRepository _parkmeterRepository;
         private readonly ISessionRepository _sessionRepository;
-        private readonly IMqttPublisherService _mqttPublisher;
+        private readonly IMessagePublisherService _mqttPublisher;
         private readonly INotificationService _notificationService;
 
 
@@ -21,7 +21,7 @@ namespace parkmeter_management.Application.Commands.Alerts
             IAlertRepository alertRepository,
             IParkmeterRepository parkmeterRepository,
             ISessionRepository sessionRepository,
-            IMqttPublisherService mqttPublisher,
+            IMessagePublisherService mqttPublisher,
             INotificationService notificationService)
         {
             _alertRepository = alertRepository;

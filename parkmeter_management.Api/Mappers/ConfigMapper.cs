@@ -9,9 +9,15 @@ namespace parkmeter_management.Api.Mappers
             this ParkMeterConfig config)
             => new ParkMeterConfigDto
             {
+                Id = config.Id,
                 ParkmeterId = config.ParkmeterId,
-                PricePerHour = config.PricePerHour,
                 MaxDuration = config.MaxDuration,
+                StrategyType = config.StrategyType,
+                PricePerHour = config.PricePerHour,
+                PeakRate = config.PeakRate,
+                OffPeakRate = config.OffPeakRate,
+                WeekdayRate = config.WeekdayRate,
+                WeekendRate = config.WeekendRate,
                 CreatedAt = config.CreatedAt,
                 UpdatedAt = config.UpdatedAt
             };

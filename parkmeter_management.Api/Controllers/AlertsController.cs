@@ -1,8 +1,8 @@
-﻿using MediatR;
-using Microsoft.AspNetCore.Authorization;
+﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using parkmeter_management.Api.Mappers;
 using parkmeter_management.Application.Managers.Interfaces;
+using parkmeter_management.Domain.Enums;
 
 
 namespace parkmeter_management.Api.Controllers
@@ -18,7 +18,6 @@ namespace parkmeter_management.Api.Controllers
         {
             _alertManager = alertManager;
         }
-
 
         //----------------------------------------------------------
 
@@ -49,9 +48,18 @@ namespace parkmeter_management.Api.Controllers
         [HttpPut("{id}/resolve")]
         public async Task<IActionResult> Resolve(Guid id)
         {
+            var alert = await _alertManager.GetById(id);
+            if (alert == null)
+                return NotFound("Alerte introuvable");
+
+            if (alert.Status == AlertStatus.RESOLVED)
+                return Conflict("Alerte déjà résolue");
+
             var result = await _alertManager.ResolveAlert(id);
-            if (!result) return NotFound();
-            return Ok("Alert resolved successfully");
+            if (!result)
+                return BadRequest("Impossible de résoudre cette alerte");
+
+            return Ok("Alerte résolue");
         }
 
         //----------------------------------------------------------

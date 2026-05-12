@@ -5,29 +5,33 @@ namespace parkmeter_management.Api.BackgroundServices
     public class MqttBackgroundService : BackgroundService
     {
         private readonly MqttBrokerService _broker;
-        private readonly MqttSubscriberService _subscriber;
+        private readonly MqttClientService _client;
 
         public MqttBackgroundService(
             MqttBrokerService broker,
-            MqttSubscriberService subscriber)
+            MqttClientService client)
         {
             _broker = broker;
-            _subscriber = subscriber;
+            _client = client;
         }
 
-        protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+        protected override async Task ExecuteAsync(
+            CancellationToken stoppingToken)
         {
-            await _broker.StartAsync();
-            await _subscriber.StartAsync();
-            Console.WriteLine("MQTT Background Service running");
+            await _broker.StartAsync();              
+            await Task.Delay(500, stoppingToken);   
+            await _client.StartAsync(stoppingToken);
+
+            Console.WriteLine("[MQTT] Ready");
             await Task.Delay(Timeout.Infinite, stoppingToken);
         }
 
-        public override async Task StopAsync(CancellationToken cancellationToken)
+        public override async Task StopAsync(
+            CancellationToken cancellationToken)
         {
-            await _subscriber.StopAsync();
-            await _broker.StopAsync();
-            Console.WriteLine("MQTT Background Service stopped");
+            await _client.StopAsync(); 
+            await _broker.StopAsync();  
+            await base.StopAsync(cancellationToken);
         }
     }
 }

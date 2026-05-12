@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using parkmeter_management.Api.Mappers;
+using parkmeter_management.Api.Requests.InterventionOrder;
 using parkmeter_management.Application.Managers.Interfaces;
 using parkmeter_management.Domain.Enums;
 
@@ -72,13 +73,5 @@ namespace parkmeter_management.Api.Controllers
         }
     }
 
-
-    public class CreateInterventionOrderRequest
-    {
-        public Guid ParkmeterId { get; set; }
-        public Guid OperatorId { get; set; }
-        public InterventionType Type { get; set; }
-        = InterventionType.CASH_COLLECTION;
-    }
 
 }

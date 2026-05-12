@@ -10,7 +10,7 @@ namespace parkmeter_management.Application.Commands.Parkmeters
     {
         private readonly IParkmeterRepository _parkmeterRepository;
         private readonly IParkmeterConfigurationRepository _configurationRepository;
-        private readonly IMqttPublisherService _mqttPublisher;
+        private readonly IMessagePublisherService _mqttPublisher;
         private readonly IAlertRepository _alertRepository;
         private readonly INotificationService _notificationService;
 
@@ -18,7 +18,7 @@ namespace parkmeter_management.Application.Commands.Parkmeters
         public ChangeStatusCommandHandler(
             IParkmeterRepository parkmeterRepository,
             IParkmeterConfigurationRepository configurationRepository,
-            IMqttPublisherService mqttPublisher,
+            IMessagePublisherService mqttPublisher,
             IAlertRepository alertRepository,
             INotificationService notificationService)
 

@@ -30,7 +30,6 @@ namespace parkmeter_management.Api.Controllers
 
         //----------------------------------------------------------
 
-
         [HttpGet]
         public async Task<IActionResult> GetAll()
         {
@@ -155,8 +154,7 @@ namespace parkmeter_management.Api.Controllers
             var config = await _configurationManager
                 .GetConfiguration(id);
 
-            var activeAlerts = await _alertManager
-                .GetByParkmeter(id);
+     
             var alertDtos = (await _alertManager
                 .GetUnresolvedByParkmeter(id))
                 .ToDtos()

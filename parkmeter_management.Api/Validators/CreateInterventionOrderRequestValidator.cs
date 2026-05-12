@@ -1,5 +1,5 @@
 ﻿using FluentValidation;
-using parkmeter_management.Api.Controllers;
+using parkmeter_management.Api.Requests.InterventionOrder;
 
 public class CreateInterventionOrderRequestValidator
     : AbstractValidator<CreateInterventionOrderRequest>

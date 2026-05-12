@@ -3,10 +3,12 @@ using parkmeter_management.Application.Commands.ParkmeterConfiguration;
 using parkmeter_management.Application.Interfaces.Repositories;
 using parkmeter_management.Application.Managers.Interfaces;
 using parkmeter_management.Domain.Entities;
+using parkmeter_management.Domain.Enums;
 
 namespace parkmeter_management.Application.Managers.Implementations
 {
-    public class ParkmeterConfigurationManager : IParkmeterConfigurationManager
+    public class ParkmeterConfigurationManager
+        : IParkmeterConfigurationManager
     {
         private readonly IMediator _mediator;
         private readonly IParkmeterConfigurationRepository _configurationRepository;
@@ -20,19 +22,37 @@ namespace parkmeter_management.Application.Managers.Implementations
         }
 
         public async Task<bool> CreateConfig(
-            Guid parkmeterId, decimal pricePerHour,
-            int maxDuration)
+            Guid parkmeterId,
+            int maxDuration,
+            PricingStrategyType strategyType,
+            decimal? pricePerHour,
+            decimal? peakRate,
+            decimal? offPeakRate,
+            decimal? weekdayRate,
+            decimal? weekendRate)
         {
             return await _mediator.Send(new SendParkConfigCommand
             {
                 ParkmeterId = parkmeterId,
-                PricePerHour = pricePerHour,
                 MaxDuration = maxDuration,
+                StrategyType = strategyType,
+                PricePerHour = pricePerHour,
+                PeakRate = peakRate,
+                OffPeakRate = offPeakRate,
+                WeekdayRate = weekdayRate,
+                WeekendRate = weekendRate
             });
         }
 
         public async Task<bool> UpdateConfig(
-            Guid parkmeterId, decimal pricePerHour, int maxDuration)
+            Guid parkmeterId,
+            int maxDuration,
+            PricingStrategyType strategyType,
+            decimal? pricePerHour,
+            decimal? peakRate,
+            decimal? offPeakRate,
+            decimal? weekdayRate,
+            decimal? weekendRate)
         {
             var existing = await _configurationRepository
                 .GetByParkMeterIdAsync(parkmeterId);
@@ -41,8 +61,13 @@ namespace parkmeter_management.Application.Managers.Implementations
             return await _mediator.Send(new SendParkConfigCommand
             {
                 ParkmeterId = parkmeterId,
-                PricePerHour = pricePerHour,
                 MaxDuration = maxDuration,
+                StrategyType = strategyType,
+                PricePerHour = pricePerHour,
+                PeakRate = peakRate,
+                OffPeakRate = offPeakRate,
+                WeekdayRate = weekdayRate,
+                WeekendRate = weekendRate
             });
         }
 
@@ -56,13 +81,12 @@ namespace parkmeter_management.Application.Managers.Implementations
             return true;
         }
 
-
-        public async Task<ParkMeterConfig?> GetConfiguration(Guid parkmeterId)
+        public async Task<ParkMeterConfig?> GetConfiguration(
+            Guid parkmeterId)
         {
             return await _configurationRepository
                 .GetByParkMeterIdAsync(parkmeterId);
         }
-
 
         public async Task<bool> ApplyToParkmeter(Guid parkmeterId)
         {
@@ -70,11 +94,17 @@ namespace parkmeter_management.Application.Managers.Implementations
                 .GetByParkMeterIdAsync(parkmeterId);
             if (config == null) return false;
 
+            // reuse existing config — push full strategy to machine
             return await _mediator.Send(new SendParkConfigCommand
             {
                 ParkmeterId = parkmeterId,
-                PricePerHour = config.PricePerHour,
                 MaxDuration = config.MaxDuration,
+                StrategyType = config.StrategyType,
+                PricePerHour = config.PricePerHour,
+                PeakRate = config.PeakRate,
+                OffPeakRate = config.OffPeakRate,
+                WeekdayRate = config.WeekdayRate,
+                WeekendRate = config.WeekendRate
             });
         }
     }

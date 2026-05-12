@@ -1,27 +1,47 @@
 ﻿using FluentValidation;
 using parkmeter_management.Api.Requests.Configuration;
+using parkmeter_management.Domain.Enums;
 
-namespace parkmeter_management.Api.Validators
-{
-    public class UpdateConfigRequestValidator
+public class UpdateConfigRequestValidator
         : AbstractValidator<UpdateConfigRequest>
+{
+    public UpdateConfigRequestValidator()
     {
-        public UpdateConfigRequestValidator()
+        RuleFor(x => x.MaxDuration)
+            .GreaterThan(0);
+
+        When(x => x.StrategyType == PricingStrategyType.FLAT_RATE, () =>
         {
-            RuleFor(x => x.ParkmeterId)
-                            .NotEmpty()
-                            .WithMessage("Parkmeter ID is required");
-
             RuleFor(x => x.PricePerHour)
+                .NotNull()
                 .GreaterThan(0)
-                .WithMessage("Price per hour must be greater than 0")
-                .LessThanOrEqualTo(100)
-                .WithMessage("Price per hour cannot exceed 100 DT");
+                .WithMessage("PricePerHour is required for FLAT_RATE");
+        });
 
-            RuleFor(x => x.MaxDuration)
-                .InclusiveBetween(15, 240)
-                .WithMessage(
-                    "Max duration must be between 15 and 360 minutes");//6H
-        }
+        When(x => x.StrategyType == PricingStrategyType.TIME_OF_DAY, () =>
+        {
+            RuleFor(x => x.PeakRate)
+                .NotNull()
+                .GreaterThan(0)
+                .WithMessage("PeakRate is required for TIME_OF_DAY");
+
+            RuleFor(x => x.OffPeakRate)
+                .NotNull()
+                .GreaterThan(0)
+                .WithMessage("OffPeakRate is required for TIME_OF_DAY");
+        });
+
+        When(x => x.StrategyType == PricingStrategyType.WEEKDAY_WEEKEND, () =>
+        {
+            RuleFor(x => x.WeekdayRate)
+                .NotNull()
+                .GreaterThan(0)
+                .WithMessage("WeekdayRate is required for WEEKDAY_WEEKEND");
+
+            RuleFor(x => x.WeekendRate)
+                .NotNull()
+                .GreaterThan(0)
+                .WithMessage("WeekendRate is required for WEEKDAY_WEEKEND");
+        });
     }
 }

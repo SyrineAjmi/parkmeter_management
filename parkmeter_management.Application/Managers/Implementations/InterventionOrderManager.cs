@@ -1,100 +1,46 @@
-﻿using parkmeter_management.Application.Interfaces.Repositories;
-using parkmeter_management.Application.Interfaces.Services;
+﻿using MediatR;
+using parkmeter_management.Application.Commands.InterventionOrders;
+using parkmeter_management.Application.Interfaces.Repositories;
 using parkmeter_management.Application.Managers.Interfaces;
 using parkmeter_management.Domain.Entities;
 using parkmeter_management.Domain.Enums;
 
 namespace parkmeter_management.Application.Managers.Implementations
 {
+    // FIX: business logic moved to CreateInterventionOrderCommandHandler.
+    // Manager is now a thin CQRS dispatcher, consistent with all other managers.
     public class InterventionOrderManager : IInterventionOrderManager
     {
-        private readonly IInterventionOrderRepository _interventionOrderRepository;
-        private readonly INotificationService _notificationService;
-        private readonly IParkmeterRepository _parkmeterRepository;
-        private readonly IMqttPublisherService _mqttPublisher;
-
+        private readonly IMediator _mediator;
+        private readonly IInterventionOrderRepository _orderRepository;
 
         public InterventionOrderManager(
-            IInterventionOrderRepository interventionOrderRepository, INotificationService notificationService,
-            IParkmeterRepository parkmeterRepository ,
-            IMqttPublisherService mqttPublisher)
+            IMediator mediator,
+            IInterventionOrderRepository orderRepository)
         {
-            _interventionOrderRepository = interventionOrderRepository;
-            _parkmeterRepository = parkmeterRepository;
-            _notificationService = notificationService;
-            _mqttPublisher = mqttPublisher;
+            _mediator = mediator;
+            _orderRepository = orderRepository;
         }
 
-        public async Task<Guid> CreateOrder(Guid parkmeterID, Guid operatorId, InterventionType type)
-        {
-            var existing = await _interventionOrderRepository
-                .GetPendingByParkmeterAndTypeAsync(
-                    parkmeterID,
-                    type);
-            if (existing != null) return existing.Id;
-
-            var order = new InterventionOrder
+        public async Task<Guid> CreateOrder(
+            Guid parkmeterID, Guid operatorId, InterventionType type)
+            => await _mediator.Send(new CreateInterventionOrderCommand
             {
-                Id = Guid.NewGuid(),
                 ParkmeterId = parkmeterID,
                 OperatorId = operatorId,
-                Type = type,    
-                Status = InterventionOrderStatus.PENDING,
-                CreatedAt = DateTime.UtcNow
-            };
-
-            await _interventionOrderRepository.AddAsync(order);
-
-            await _mqttPublisher.PublishStatusAsync(
-                  parkmeterID,
-                  MeterStatus.MAINTENANCE.ToString());
-
-            var parkmeter = await _parkmeterRepository
-                .GetByIdAsync(parkmeterID);
-            if (parkmeter != null)
-            {
-                parkmeter.Status = MeterStatus.MAINTENANCE;
-                await _parkmeterRepository.UpdateAsync(parkmeter);
-            }
-
-            // notify operator 
-            await _notificationService
-                .NotifyInterventionOrderCreated(
-                    operatorId, 
-                    parkmeterID,
-                    order.Id);
-
-            return order.Id;
-        }
+                Type = type
+            });
 
         public async Task<List<InterventionOrder>> GetAllOrders()
-        {
-            var orders = await _interventionOrderRepository
-                .GetAllAsync();
-            return orders.ToList();
-        }
+            => (await _orderRepository.GetAllAsync()).ToList();
 
-        public async Task<List<InterventionOrder>> GetByParkmeter(
-            Guid parkmeterID)
-        {
-            var orders = await _interventionOrderRepository
-                .GetByParkmeterAsync(parkmeterID);
-            return orders.ToList();
-        }
+        public async Task<List<InterventionOrder>> GetByParkmeter(Guid parkmeterID)
+            => (await _orderRepository.GetByParkmeterAsync(parkmeterID)).ToList();
 
         public async Task<List<InterventionOrder>> GetPendingOrders()
-        {
-            var orders = await _interventionOrderRepository
-                .GetPendingAsync();
-            return orders.ToList();
-        }
+            => (await _orderRepository.GetPendingAsync()).ToList();
 
-        public async Task<List<InterventionOrder>> GetByOperator(
-             Guid operatorId) 
-        {
-            var orders = await _interventionOrderRepository
-                .GetByOperatorAsync(operatorId);
-            return orders.ToList();
-        }
+        public async Task<List<InterventionOrder>> GetByOperator(Guid operatorId)
+            => (await _orderRepository.GetByOperatorAsync(operatorId)).ToList();
     }
 }
