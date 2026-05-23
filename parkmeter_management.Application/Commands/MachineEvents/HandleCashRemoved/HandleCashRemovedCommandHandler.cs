@@ -46,12 +46,14 @@ namespace parkmeter_management.Application.Commands.MachineEvents.HandleCashRemo
                 activeSession.EndDateTime = DateTime.UtcNow;
                 await _sessionRepository.UpdateAsync(activeSession);
 
-                await _notificationService.NotifySessionClosed(
+                if (parkmeter != null)
+                {
+                    await _notificationService.NotifySessionClosed(
                     command.ParkmeterId,
                     parkmeter.SerialNumber,
                     activeSession.TotalAmount,
                     activeSession.TotalTransactions);
-
+                }
                 Console.WriteLine(
                     $"Session closed | Total: {activeSession.TotalAmount} DT");
             }
