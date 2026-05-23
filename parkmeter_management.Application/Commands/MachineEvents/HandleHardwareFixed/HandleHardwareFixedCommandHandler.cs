@@ -42,13 +42,15 @@ namespace parkmeter_management.Application.Commands.MachineEvents.HandleHardware
                 pendingOrder.CompletedAt = DateTime.UtcNow;
                 await _orderRepository.UpdateAsync(pendingOrder);
 
-                await _notificationService
+                if (parkmeter != null)
+                {
+                    await _notificationService
                     .NotifyInterventionOrderCompleted(
                         pendingOrder.Id,
                         parkmeter.SerialNumber,
                         command.ParkmeterId,
                         pendingOrder.CompletedAt.Value);
-
+                }
 
 
                 Console.WriteLine(

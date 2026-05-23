@@ -107,11 +107,14 @@ namespace parkmeter_management.Application.Commands.MachineEvents.HandleCashRemo
                 pendingOrder.CompletedAt = DateTime.UtcNow;
                 await _interventionOrderRepository.UpdateAsync(pendingOrder);
 
-                await _notificationService.NotifyInterventionOrderCompleted(
+                if (parkmeter != null)
+                {
+                    await _notificationService.NotifyInterventionOrderCompleted(
                     pendingOrder.Id,
                     parkmeter.SerialNumber,
                     command.ParkmeterId,
                     pendingOrder.CompletedAt.Value);
+                }
 
                 Console.WriteLine(
                     $"Intervention order completed: {pendingOrder.Id}");

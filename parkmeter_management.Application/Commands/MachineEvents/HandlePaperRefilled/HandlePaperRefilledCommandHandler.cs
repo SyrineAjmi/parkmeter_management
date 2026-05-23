@@ -66,13 +66,14 @@ namespace parkmeter_management.Application.Commands.MachineEvents.HandlePaperRef
                 pendingOrder.CompletedAt = DateTime.UtcNow;
                 await _interventionOrderRepository.UpdateAsync(pendingOrder);
 
-
-                await _notificationService.NotifyInterventionOrderCompleted(
-                    pendingOrder.Id,
-                    parkmeter.SerialNumber,
-                    command.ParkmeterId,
-                    pendingOrder.CompletedAt.Value);
-
+                if (parkmeter != null)
+                {
+                    await _notificationService.NotifyInterventionOrderCompleted(
+                        pendingOrder.Id,
+                        parkmeter.SerialNumber,
+                        command.ParkmeterId,
+                        pendingOrder.CompletedAt.Value);
+                }
                 Console.WriteLine("Paper refill order completed");
             }
 
