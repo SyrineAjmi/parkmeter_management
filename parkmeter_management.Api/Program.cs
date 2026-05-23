@@ -30,6 +30,8 @@ Console.OutputEncoding = System.Text.Encoding.UTF8;
 
 var builder = WebApplication.CreateBuilder(args);
 
+builder.Host.UseWindowsService();
+
 // ── Controllers ───────────────────────────────
 builder.Services.AddControllers()
     .AddJsonOptions(opts =>
