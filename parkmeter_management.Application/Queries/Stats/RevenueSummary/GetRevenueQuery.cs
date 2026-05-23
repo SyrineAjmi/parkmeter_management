@@ -13,7 +13,6 @@ namespace parkmeter_management.Application.Queries.Stats.RevenueSummary
           int CompletedTransactions,
           int FailedTransactions,
           int CancelledTransactions,
-          int ExpiredTransactions,
           DateTime From,
           DateTime To);
 

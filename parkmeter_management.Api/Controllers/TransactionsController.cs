@@ -21,11 +21,28 @@ namespace parkmeter_management.Api.Controllers
 
         [Authorize(Roles = "RESPONSABLE_FINANCIER")]
         [HttpGet]
-        public async Task<IActionResult> GetAll()
+        public async Task<IActionResult> GetAll(
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 20)
         {
-            var transactions = await _transactionManager.GetAllTransactions();
-            return Ok(transactions.ToDtos());
+            var transactions = await _transactionManager
+                .GetAllTransactions();
 
+            var total = transactions.Count();
+            var paged = transactions
+                .OrderByDescending(t => t.CreatedAt)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .ToDtos();
+
+            return Ok(new
+            {
+                Data = paged,
+                Page = page,
+                PageSize = pageSize,
+                Total = total,
+                TotalPages = (int)Math.Ceiling((double)total / pageSize)
+            });
         }
 
         //----------------------------------------------------------
@@ -80,6 +97,19 @@ namespace parkmeter_management.Api.Controllers
 
             return Ok(transactions.ToDtos());
 
+        }
+
+        //----------------------------------------------------------
+
+        [Authorize(Roles = "RESPONSABLE_FINANCIER")]
+        [HttpGet("filter/serial")]
+        public async Task<IActionResult> FilterBySerial([FromQuery] string serial)
+        {
+            var transactions = await _transactionManager.GetAllTransactions();
+            var filtered = transactions
+                .Where(t => t.Parkmeter?.SerialNumber
+                    .Contains(serial, StringComparison.OrdinalIgnoreCase) == true);
+            return Ok(filtered.ToDtos());
         }
 
     }

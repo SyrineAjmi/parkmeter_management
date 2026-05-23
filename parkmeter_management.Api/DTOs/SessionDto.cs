@@ -5,6 +5,7 @@
     {
         public Guid Id { get; set; }
         public Guid ParkmeterId { get; set; }
+        public string ParkmeterSerial { get; set; } = string.Empty;
         public DateTime StartDateTime { get; set; }
         public DateTime? EndDateTime { get; set; }
         public int TotalTransactions { get; set; }

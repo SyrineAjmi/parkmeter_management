@@ -10,27 +10,29 @@ namespace parkmeter_management.Application.Commands.MachineEvents.HandleDoorClos
         : IRequestHandler<HandleDoorClosedCommand, bool>
     {
         private readonly IAlertRepository _alertRepository;
-        private readonly IParkmeterRepository _parkmeterRepository;
-        private readonly IMessagePublisherService _mqttPublisher;
+        private readonly INotificationService _notificationService;
+        private readonly IParkmeterRepository _parkmeterRepository; 
+
 
         public HandleDoorClosedCommandHandler(
             IAlertRepository alertRepository,
-            IParkmeterRepository parkmeterRepository,
-            IMessagePublisherService mqttPublisher)
+            INotificationService notificationService,
+            IParkmeterRepository parkmeterRepository)
         {
             _alertRepository = alertRepository;
+            _notificationService = notificationService;
             _parkmeterRepository = parkmeterRepository;
-            _mqttPublisher = mqttPublisher;
         }
 
         public async Task<bool> Handle(
             HandleDoorClosedCommand command,
             CancellationToken ct)
         {
-            
-            // aut-resolve DOOR_OPEN
+            // auto-resolve DOOR_OPEN alert
             var alerts = await _alertRepository
                 .GetByParkmeterAsync(command.ParkmeterId);
+            var parkmeter = await _parkmeterRepository.GetByIdAsync(command.ParkmeterId); 
+
             foreach (var a in alerts.Where(a =>
                 a.Status == AlertStatus.NOT_RESOLVED &&
                 a.Type == AlertType.DOOR_OPEN))
@@ -38,32 +40,18 @@ namespace parkmeter_management.Application.Commands.MachineEvents.HandleDoorClos
                 a.Status = AlertStatus.RESOLVED;
                 a.ResolvedAt = DateTime.UtcNow;
                 await _alertRepository.UpdateAsync(a);
+                await _notificationService.NotifyAlertResolved(  // ← add after UpdateAsync
+                    a.Id,
+                    parkmeter?.SerialNumber ?? string.Empty,
+                    a.ParkmeterId);
+
                 Console.WriteLine("Auto-resolved: DOOR_OPEN");
             }
 
-            // check stillBlocked
-            var remaining = await _alertRepository
-                .GetByParkmeterAsync(command.ParkmeterId);
-            var stillBlocked = remaining.Any(a =>
-                a.Status == AlertStatus.NOT_RESOLVED &&
-                (a.Type == AlertType.CASH_BOX_FULL ||
-                 a.Type == AlertType.PAPER_EMPTY ||
-                 a.Type == AlertType.HARDWARE_FAILURE));
-
-            // if not blocked revert to IN_SERVICE 
-            var parkmeter = await _parkmeterRepository
-                .GetByIdAsync(command.ParkmeterId);
-            if (!stillBlocked && parkmeter != null &&
-                parkmeter.Status == MeterStatus.TEMPORARILY_UNAVAILABLE)
-            {
-                parkmeter.Status = MeterStatus.IN_SERVICE;
-                await _parkmeterRepository.UpdateAsync(parkmeter);
-                await _mqttPublisher.PublishStatusAsync(
-                    command.ParkmeterId,
-                    MeterStatus.IN_SERVICE.ToString());
-                Console.WriteLine(
-                    $" {parkmeter.SerialNumber} : IN_SERVICE (door closed)");
-            }
+            // no status push — machine will report IN_SERVICE itself
+            Console.WriteLine(
+                $"[DOOR_CLOSED] processed — " +
+                $"machine will report its own status");
 
             return true;
         }

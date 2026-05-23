@@ -32,7 +32,8 @@ namespace parkmeter_management.Infrastructure
         public async Task<IEnumerable<InterventionOrder>> GetAllAsync()
         {
             return await _context.InterventionOrders
-                .Include(o => o.Operator) 
+                .Include(o => o.Operator)
+                .Include(o => o.Parkmeter)
                 .OrderByDescending(o => o.CreatedAt)
                 .ToListAsync();
         }
@@ -44,7 +45,8 @@ namespace parkmeter_management.Infrastructure
         {
             return await _context.InterventionOrders
                 .Where(o => o.ParkmeterId == parkmeterID)
-                .Include(o => o.Operator) 
+                .Include(o => o.Operator)
+                .Include(o => o.Parkmeter)
                 .OrderByDescending(o => o.CreatedAt)
                 .ToListAsync();
         }
@@ -54,7 +56,8 @@ namespace parkmeter_management.Infrastructure
             return await _context.InterventionOrders
                 .Where(o => o.Status ==
                     InterventionOrderStatus.PENDING)
-                .Include(o => o.Operator) 
+                .Include(o => o.Operator)
+                .Include(o => o.Parkmeter)
                 .OrderByDescending(o => o.CreatedAt)
                 .ToListAsync();
         }
@@ -62,7 +65,8 @@ namespace parkmeter_management.Infrastructure
         public async Task<IEnumerable<InterventionOrder>> GetByOperatorAsync(Guid operatorId)
         {
             return await _context.InterventionOrders
-                .Include(o => o.Operator) 
+                .Include(o => o.Operator)
+                .Include(o => o.Parkmeter)
                 .Where(o => o.OperatorId == operatorId)
                 .OrderByDescending(o => o.CreatedAt)
                 .ToListAsync();
@@ -75,6 +79,7 @@ namespace parkmeter_management.Infrastructure
         {
             return await _context.InterventionOrders
                 .Include(o => o.Operator)
+                .Include(o => o.Parkmeter)
                 .FirstOrDefaultAsync(o =>
                     o.ParkmeterId == parkmeterID &&
                     o.Type == type && 

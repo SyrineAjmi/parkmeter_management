@@ -3,8 +3,7 @@
     public enum TransactionStatus {
         COMPLETED,
         FAILED,
-        CANCELLED,
-        EXPIRED
+        CANCELLED
     }
 
 }

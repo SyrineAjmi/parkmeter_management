@@ -8,9 +8,9 @@
         "DebugTarget": "https"
       },
       {
-        "Path": "parkmeter_management.ParkmeterSimulator\\parkmeter_management.ParkmeterSimulator.csproj",
+        "Path": "parkmeter_management.SimulatorWPF\\parkmeter_management.SimulatorWPF.csproj",
         "Action": "Start",
-        "DebugTarget": "parkmeter_management.ParkmeterSimulator"
+        "DebugTarget": "parkmeter_management.SimulatorWPF"
       }
     ]
   }

@@ -6,6 +6,7 @@ namespace parkmeter_management.Domain.Entities
     {
         public Guid Id { get; set; } = Guid.NewGuid();
         public Guid ParkmeterId { get; set; }
+        public Parkmeter? Parkmeter { get; set; }
         public DateTime StartDateTime { get; set; } = DateTime.UtcNow;
         public DateTime? EndDateTime { get; set; }
         public int TotalTransactions { get; set; } = 0;

@@ -6,6 +6,7 @@ namespace parkmeter_management.Application.Interfaces.Services
     {
         Task PublishConfigAsync(Guid parkmeterId, ParkMeterConfig config);
         Task PublishStatusAsync(Guid parkmeterId, string status);
-        //Task PublishNewParkmeterAsync(Guid parkmeterID, string serialNumber);
+        Task<bool> PublishCommandAsync(Guid parkmeterId, string command);
+
     }
 }

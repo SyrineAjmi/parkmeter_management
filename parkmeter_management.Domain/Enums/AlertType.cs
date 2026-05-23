@@ -10,7 +10,6 @@
         PAPER_EMPTY = 16,
         HARDWARE_FAILURE = 64,
         DOOR_OPEN = 128,
-        POWER_FAILURE = 256,
-        CONNECTION_LOST = 512
+        CONNECTION_LOST = 256
     }
 }

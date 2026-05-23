@@ -7,7 +7,6 @@ namespace parkmeter_management.Application.Queries.Stats.Overview
            int TotalParkmeters,
            int InService,
            int TemporarilyUnavailable,
-           int Maintenance,
            int OutOfService,
            int PendingActivation,
            int UnresolvedAlerts,

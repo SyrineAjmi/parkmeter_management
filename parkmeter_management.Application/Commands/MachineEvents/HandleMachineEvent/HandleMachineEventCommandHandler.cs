@@ -1,6 +1,7 @@
 ﻿using MediatR;
 using parkmeter_management.Application.Commands.MachineEvents.HandleCashRemoved;
 using parkmeter_management.Application.Commands.MachineEvents.HandleDoorClosed;
+using parkmeter_management.Application.Commands.MachineEvents.HandleHardwareFixed;
 using parkmeter_management.Application.Commands.MachineEvents.HandlePaperRefilled;
 using parkmeter_management.Application.Commands.MachineEvents.HandleParkmeterOffline;
 using parkmeter_management.Application.Commands.MachineEvents.HandleParkmeterOnline;
@@ -54,10 +55,6 @@ namespace parkmeter_management.Application.Commands.MachineEvents.HandleMachineE
                         new HandleParkmeterOnlineCommand
                         { ParkmeterId = command.ParkmeterId },
 
-                    MachineEventType.MACHINE_OFFLINE =>
-                        new HandleParkmeterOfflineCommand
-                        { ParkmeterId = command.ParkmeterId },
-
                     MachineEventType.MACHINE_RECONNECTED =>
                         new HandleReconnectedCommand
                         { ParkmeterId = command.ParkmeterId },
@@ -73,6 +70,13 @@ namespace parkmeter_management.Application.Commands.MachineEvents.HandleMachineE
                     MachineEventType.DOOR_CLOSED =>
                         new HandleDoorClosedCommand
                         { ParkmeterId = command.ParkmeterId },
+
+                    MachineEventType.HARDWARE_FIXED =>
+                        new HandleHardwareFixedCommand
+                        {
+                            ParkmeterId = command.ParkmeterId,
+                            CreatedAt = command.CreatedAt
+                        },
 
                     _ => null
                 };

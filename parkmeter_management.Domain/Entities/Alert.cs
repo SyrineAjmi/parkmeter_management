@@ -6,6 +6,8 @@ namespace parkmeter_management.Domain.Entities
     {
         public Guid Id { get; set; } = Guid.NewGuid();
         public Guid ParkmeterId { get; set; }
+        public Parkmeter? Parkmeter { get; set; }
+
         public AlertType Type { get; set; }
         public string Description { get; set; } = string.Empty;
         public AlertStatus Status { get; set; } = AlertStatus.NOT_RESOLVED;

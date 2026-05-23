@@ -7,7 +7,6 @@
         public int CompletedTransactions { get; set; }
         public int FailedTransactions { get; set; }
         public int CancelledTransactions { get; set; }
-        public int ExpiredTransactions { get; set; }
         public DateTime From { get; set; }
         public DateTime To { get; set; }
     }

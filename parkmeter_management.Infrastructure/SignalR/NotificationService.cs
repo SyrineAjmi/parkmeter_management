@@ -15,6 +15,7 @@ namespace parkmeter_management.Infrastructure.SignalR
 
         public async Task NotifyNewAlert(
             Guid parkmeterID,
+            string serialNumber,
             string alertType,
             string priority)
         {
@@ -22,6 +23,7 @@ namespace parkmeter_management.Infrastructure.SignalR
                 "NewAlert", new
                 {
                     ParkmeterID = parkmeterID,
+                    SerialNumber = serialNumber,
                     AlertType = alertType,
                     Priority = priority,
                     Timestamp = DateTime.UtcNow
@@ -30,25 +32,40 @@ namespace parkmeter_management.Infrastructure.SignalR
 
         public async Task NotifyAlertResolved(
             Guid alertId,
+            string serialNumber,
             Guid parkmeterID)
         {
             await _hubContext.Clients.All.SendAsync(
                 "AlertResolved", new
                 {
                     AlertId = alertId,
+                    SerialNumber = serialNumber,
                     ParkmeterID = parkmeterID,
+                    Timestamp = DateTime.UtcNow
+                });
+        }
+
+        public async Task NotifyParkmeterOnline(Guid parkmeterID, string serialNumber)
+        {
+            await _hubContext.Clients.All.SendAsync(
+                "ParkmeterOnline", new
+                {
+                    ParkmeterID = parkmeterID,
+                    SerialNumber = serialNumber,
                     Timestamp = DateTime.UtcNow
                 });
         }
 
         public async Task NotifyStatusChanged(
             Guid parkmeterID,
+            string serialNumber,
             string newStatus)
         {
             await _hubContext.Clients.All.SendAsync(
                 "StatusChanged", new
                 {
                     ParkmeterID = parkmeterID,
+                    SerialNumber = serialNumber,
                     Status = newStatus,
                     Timestamp = DateTime.UtcNow
                 });
@@ -71,6 +88,7 @@ namespace parkmeter_management.Infrastructure.SignalR
 
         public async Task NotifySessionClosed(
             Guid parkmeterID,
+            string serialNumber,
             decimal totalAmount,
             int totalTransactions)
         {
@@ -78,15 +96,16 @@ namespace parkmeter_management.Infrastructure.SignalR
                 "SessionClosed", new
                 {
                     ParkmeterID = parkmeterID,
+                    SerialNumber = serialNumber,
                     TotalAmount = totalAmount,
                     TotalTransactions = totalTransactions,
                     Timestamp = DateTime.UtcNow
                 });
         }
 
-
         public async Task NotifyInterventionOrderCreated(
             Guid operatorId,
+            string serialNumber,
             Guid parkmeterID,
             Guid orderId)
         {
@@ -94,6 +113,7 @@ namespace parkmeter_management.Infrastructure.SignalR
                 "InterventionOrderCreated", new
                 {
                     OperatorId = operatorId,
+                    SerialNumber = serialNumber,
                     ParkmeterID = parkmeterID,
                     OrderId = orderId,
                     Timestamp = DateTime.UtcNow
@@ -102,6 +122,7 @@ namespace parkmeter_management.Infrastructure.SignalR
 
         public async Task NotifyInterventionOrderCompleted(
             Guid orderId,
+            string serialNumber,
             Guid parkmeterID,
             DateTime completedAt)
         {
@@ -109,11 +130,26 @@ namespace parkmeter_management.Infrastructure.SignalR
                 "InterventionOrderCompleted", new
                 {
                     OrderId = orderId,
+                    SerialNumber = serialNumber,
                     ParkmeterID = parkmeterID,
                     CompletedAt = completedAt
                 });
         }
 
+        public async Task NotifyTelemetry(
+            Guid parkmeterID,
+            decimal cashAmount,
+            int transactionCount)
+        {
+            await _hubContext.Clients.All.SendAsync(
+                "Telemetry", new
+                {
+                    ParkmeterID = parkmeterID,
+                    CashAmount = cashAmount,
+                    TransactionCount = transactionCount,
+                    Timestamp = DateTime.UtcNow
+                });
+        }
 
     }
 }

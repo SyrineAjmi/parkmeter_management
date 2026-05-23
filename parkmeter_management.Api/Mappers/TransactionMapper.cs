@@ -10,6 +10,7 @@ namespace parkmeter_management.Api.Mappers
             {
                 Id = transaction.Id,
                 ParkmeterId = transaction.ParkmeterId,
+                ParkmeterSerial = transaction.Parkmeter?.SerialNumber ?? string.Empty,
                 SessionId = transaction.SessionId,
                 Amount = transaction.Amount,
                 Duration = transaction.Duration,

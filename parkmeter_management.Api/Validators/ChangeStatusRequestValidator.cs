@@ -4,7 +4,7 @@ using parkmeter_management.Api.Requests.Parkmeter;
 namespace parkmeter_management.Api.Validators
 {
     public class ChangeStatusRequestValidator
-        : AbstractValidator<ChangeStatusRequest>
+    : AbstractValidator<ChangeStatusRequest>
     {
         public ChangeStatusRequestValidator()
         {
@@ -13,12 +13,15 @@ namespace parkmeter_management.Api.Validators
                 .WithMessage("Status is required")
                 .Must(s => new[]
                 {
-                    "IN_SERVICE",
-                    "OUT_OF_SERVICE",
-                    "MAINTENANCE",
-                    "TEMPORARILY_UNAVAILABLE"
+                "IN_SERVICE",
+                "OUT_OF_SERVICE"
                 }.Contains(s))
-                .WithMessage("Status must be IN_SERVICE, OUT_OF_SERVICE or MAINTENANCE or TEMPORARILY_UNAVAILABLE");
+                .WithMessage(
+                    "Statut invalide. " +
+                    "Valeurs autorisées: IN_SERVICE, " +
+                    "OUT_OF_SERVICE. " +
+                    "TEMPORARILY_UNAVAILABLE est géré " +
+                    "automatiquement par la machine.");
         }
     }
 }

@@ -1,6 +1,7 @@
 ﻿using MediatR;
 using parkmeter_management.Application.Interfaces.Repositories;
 using parkmeter_management.Application.Interfaces.Services;
+using parkmeter_management.Domain.Entities;
 using parkmeter_management.Domain.Enums;
 
 namespace parkmeter_management.Application.Commands.Alerts
@@ -9,18 +10,20 @@ namespace parkmeter_management.Application.Commands.Alerts
         : IRequestHandler<ResolveAlertCommand, bool>
     {
         private readonly IAlertRepository _alertRepository;
+        private readonly IInterventionOrderRepository _orderRepository;
         private readonly IParkmeterRepository _parkmeterRepository;
         private readonly IMessagePublisherService _mqttPublisher;
         private readonly INotificationService _notificationService;
 
-
         public ResolveAlertCommandHandler(
             IAlertRepository alertRepository,
+            IInterventionOrderRepository orderRepository,
             IParkmeterRepository parkmeterRepository,
             IMessagePublisherService mqttPublisher,
             INotificationService notificationService)
         {
             _alertRepository = alertRepository;
+            _orderRepository = orderRepository;
             _parkmeterRepository = parkmeterRepository;
             _mqttPublisher = mqttPublisher;
             _notificationService = notificationService;
@@ -37,13 +40,18 @@ namespace parkmeter_management.Application.Commands.Alerts
             alert.Status = AlertStatus.RESOLVED;
             alert.ResolvedAt = DateTime.UtcNow;
             await _alertRepository.UpdateAsync(alert);
+            var parkmeter = await _parkmeterRepository.GetByIdAsync(alert.ParkmeterId);
 
-            // notify front resolved 
+            // notify dashboard
             await _notificationService.NotifyAlertResolved(
                 request.AlertId,
+                parkmeter?.SerialNumber ?? string.Empty,
                 alert.ParkmeterId);
 
-            // check if status should revert
+            Console.WriteLine(
+                $"[ALERT] Resolved: {alert.Type} → {alert.Id}");
+
+            // check remaining blocking alerts
             var remaining = await _alertRepository
                 .GetByParkmeterAsync(alert.ParkmeterId);
 
@@ -54,26 +62,63 @@ namespace parkmeter_management.Application.Commands.Alerts
                  a.Type == AlertType.DOOR_OPEN ||
                  a.Type == AlertType.HARDWARE_FAILURE));
 
-            // to IN_SERVICE if not blocked
-            if (!stillBlocked)
+            // check pending intervention orders
+            var pendingCashOrder = await _orderRepository
+                .GetPendingByParkmeterAndTypeAsync(
+                    alert.ParkmeterId,
+                    InterventionType.CASH_COLLECTION);
+
+            var pendingPaperOrder = await _orderRepository
+                .GetPendingByParkmeterAndTypeAsync(
+                    alert.ParkmeterId,
+                    InterventionType.PAPER_REFILL);
+
+            var pendingHardwareOrder = await _orderRepository
+                .GetPendingByParkmeterAndTypeAsync(
+                    alert.ParkmeterId,
+                    InterventionType.HARDWARE_REPAIR);
+
+            var hasPendingOrder =
+                pendingCashOrder != null ||
+                pendingPaperOrder != null ||
+                pendingHardwareOrder != null;
+
+            if (!stillBlocked && !hasPendingOrder)
             {
-                var parkmeter = await _parkmeterRepository
-                    .GetByIdAsync(alert.ParkmeterId);
+                // check current machine status in DB
+                // if machine already restored itself (e.g. after [H] fix)
+                // no command needed — resolution is just acknowledgement
+
 
                 if (parkmeter != null &&
-                    parkmeter.Status == MeterStatus.TEMPORARILY_UNAVAILABLE)
+                    parkmeter.Status != MeterStatus.IN_SERVICE)
                 {
-                    parkmeter.Status = MeterStatus.IN_SERVICE;
-                    await _parkmeterRepository.UpdateAsync(parkmeter);
-                    await _mqttPublisher.PublishStatusAsync(
+                    // machine hasn't restored itself yet
+                    // send command — machine will evaluate physically
+                    await _mqttPublisher.PublishCommandAsync(
                         alert.ParkmeterId,
-                        MeterStatus.IN_SERVICE.ToString());
+                        "SET_IN_SERVICE");
 
-                    // notify front status changed
-                    await _notificationService.NotifyStatusChanged(
-                        alert.ParkmeterId,
-                        MeterStatus.IN_SERVICE.ToString());
+                    Console.WriteLine(
+                        $"[COMMAND] SET_IN_SERVICE sent " +
+                        $"→ {alert.ParkmeterId}");
                 }
+                else
+                {
+                    // machine already IN_SERVICE
+                    // resolution is pure acknowledgement — no command needed
+                    Console.WriteLine(
+                        $"[ALERT] Resolved — machine already " +
+                        $"IN_SERVICE, no command needed " +
+                        $"(pure acknowledgement)");
+                }
+            }
+            else
+            {
+                Console.WriteLine(
+                    $"[ALERT] Resolved but meter stays blocked — " +
+                    $"stillBlocked: {stillBlocked}, " +
+                    $"hasPendingOrder: {hasPendingOrder}");
             }
 
             return true;

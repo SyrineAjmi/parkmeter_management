@@ -16,6 +16,7 @@
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
     <PackageReference Include="MQTTnet" Version="4.3.0.858" />
+    <PackageReference Include="MQTTnet.AspNetCore" Version="4.3.0.858" />
   </ItemGroup>
 
   <ItemGroup>

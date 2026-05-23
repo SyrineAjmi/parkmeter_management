@@ -37,7 +37,10 @@ namespace parkmeter_management.Infrastructure.Persistence.Repositories
 
         public async Task<IEnumerable<Session>> GetAllAsync()
         {
-            return await _context.Sessions.ToListAsync();
+            return await _context.Sessions
+                .Include(s => s.Parkmeter)
+                .OrderByDescending(s => s.StartDateTime)
+                .ToListAsync();
         }
 
         public async Task<IEnumerable<Session>> GetByParkmeterAsync(
@@ -45,6 +48,7 @@ namespace parkmeter_management.Infrastructure.Persistence.Repositories
         {
             return await _context.Sessions
                 .Where(s => s.ParkmeterId == parkmeterID)
+                .Include(s => s.Parkmeter)
                 .OrderByDescending(s => s.StartDateTime)
                 .ToListAsync();
         }
@@ -61,6 +65,7 @@ namespace parkmeter_management.Infrastructure.Persistence.Repositories
                 query = query.Where(s => s.StartDateTime <= to.Value);
 
             return await query
+                .Include(s => s.Parkmeter)
                 .OrderByDescending(s => s.StartDateTime)
                 .ToListAsync();
         }

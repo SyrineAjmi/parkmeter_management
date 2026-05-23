@@ -1,0 +1,139 @@
+<Window x:Class="SimulatorWPF.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Parkmeter Simulator" 
+        Height="750" Width="1200"
+        MinHeight="600" MinWidth="900"
+        Background="#060C1A"
+        WindowStartupLocation="CenterScreen">
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="56"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- Header -->
+        <Border Grid.Row="0" 
+                Background="#080E1C" 
+                BorderBrush="#1E293B" 
+                BorderThickness="0,0,0,1">
+            <Grid Margin="20,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- Logo + Title -->
+                <StackPanel Grid.Column="0" 
+                            Orientation="Horizontal" 
+                            VerticalAlignment="Center">
+                    <TextBlock Text="⬡" 
+                               FontSize="22" 
+                               Foreground="#6366F1" 
+                               VerticalAlignment="Center"
+                               Margin="0,0,10,0"/>
+                    <StackPanel VerticalAlignment="Center">
+                        <TextBlock Text="SIMULATEUR DE TEST PARKMETRES" 
+                                   FontFamily="Consolas"
+                                   FontSize="14" 
+                                   FontWeight="Bold"
+                                   Foreground="#F1F5F9"
+                                   />
+                        <TextBlock Text="Interface de simulation IoT" 
+                                   FontFamily="Consolas"
+                                   FontSize="9" 
+                                   Foreground="#334155"
+                                   />
+                    </StackPanel>
+                </StackPanel>
+
+                <!-- Status -->
+                <StackPanel Grid.Column="2" 
+                            Orientation="Horizontal" 
+                            VerticalAlignment="Center"
+                            Margin="0,0,0,0">
+                    <Border Background="#0F172A" 
+                            BorderBrush="#1E293B" 
+                            BorderThickness="1" 
+                            CornerRadius="6" 
+                            Padding="10,5">
+                        <StackPanel Orientation="Horizontal">
+                            <Ellipse Width="6" Height="6" 
+                                     Fill="#10B981" 
+                                     Margin="0,0,8,0"
+                                     VerticalAlignment="Center"/>
+                            <TextBlock x:Name="StatusText"
+                                       Text="Chargement..." 
+                                       FontFamily="Consolas"
+                                       FontSize="10" 
+                                       Foreground="#475569"
+                                       VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- Body -->
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="280"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- Cards Area -->
+            <Grid Grid.Column="0" Margin="16">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+
+                <TextBlock Grid.Row="0"
+                           Text="PARCMÈTRES" 
+                           FontFamily="Consolas"
+                           FontSize="9" 
+                           FontWeight="Bold"
+                           Foreground="#334155"
+                           
+                           Margin="0,0,0,12"/>
+
+                <ScrollViewer Grid.Row="1" 
+                              VerticalScrollBarVisibility="Auto"
+                              HorizontalScrollBarVisibility="Disabled">
+                    <WrapPanel x:Name="CardsPanel" 
+                               Orientation="Horizontal"/>
+                </ScrollViewer>
+            </Grid>
+
+            <!-- Log Panel -->
+            <Border Grid.Column="1" 
+                    Background="#070D1A" 
+                    BorderBrush="#0F172A" 
+                    BorderThickness="1,0,0,0">
+                <Grid Margin="16">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <TextBlock Grid.Row="0"
+                               Text="JOURNAL D'ÉVÉNEMENTS" 
+                               FontFamily="Consolas"
+                               FontSize="9" 
+                               FontWeight="Bold"
+                               Foreground="#334155"
+                               
+                               Margin="0,0,0,12"/>
+
+                    <ScrollViewer x:Name="LogScrollViewer"
+                                  Grid.Row="1" 
+                                  VerticalScrollBarVisibility="Auto">
+                        <StackPanel x:Name="LogPanel"/>
+                    </ScrollViewer>
+                </Grid>
+            </Border>
+        </Grid>
+    </Grid>
+</Window>

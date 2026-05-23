@@ -18,8 +18,8 @@ namespace parkmeter_management.Api.BackgroundServices
         protected override async Task ExecuteAsync(
             CancellationToken stoppingToken)
         {
-            await _broker.StartAsync();              
-            await Task.Delay(500, stoppingToken);   
+            await _broker.StartAsync();
+            await Task.Delay(500, stoppingToken);
             await _client.StartAsync(stoppingToken);
 
             Console.WriteLine("[MQTT] Ready");
@@ -29,8 +29,8 @@ namespace parkmeter_management.Api.BackgroundServices
         public override async Task StopAsync(
             CancellationToken cancellationToken)
         {
-            await _client.StopAsync(); 
-            await _broker.StopAsync();  
+            await _client.StopAsync();
+            await _broker.StopAsync();
             await base.StopAsync(cancellationToken);
         }
     }

@@ -26,6 +26,10 @@ namespace parkmeter_management.Infrastructure.Persistence
                 entity.Property(e => e.Type).HasConversion<string>();
                 entity.Property(e => e.Status).HasConversion<string>();
                 entity.Property(e => e.Priority).HasConversion<string>();
+                entity.HasOne(e => e.Parkmeter)
+                      .WithMany()
+                      .HasForeignKey(e => e.ParkmeterId)
+                      .OnDelete(DeleteBehavior.Restrict);
             });
 
             // Parkmeter
@@ -58,6 +62,10 @@ namespace parkmeter_management.Infrastructure.Persistence
                 entity.HasKey(e => e.Id);
                 entity.Property(e => e.Amount).HasColumnType("decimal(18,3)");
                 entity.Property(e => e.Status).HasConversion<string>();
+                entity.HasOne(e => e.Parkmeter)  
+                      .WithMany()
+                      .HasForeignKey(e => e.ParkmeterId)
+                      .OnDelete(DeleteBehavior.Restrict);
             });
 
             // Session (with Status)
@@ -66,6 +74,10 @@ namespace parkmeter_management.Infrastructure.Persistence
                 entity.HasKey(e => e.Id);
                 entity.Property(e => e.TotalAmount).HasColumnType("decimal(18,3)");
                 entity.Property(e => e.Status).HasConversion<string>();
+                entity.HasOne(e => e.Parkmeter)
+                      .WithMany()
+                      .HasForeignKey(e => e.ParkmeterId)
+                      .OnDelete(DeleteBehavior.Restrict);
             });
 
             // User
@@ -93,6 +105,26 @@ namespace parkmeter_management.Infrastructure.Persistence
                 entity.HasIndex(e => e.ParkmeterId);
                 entity.HasIndex(e => e.CreatedAt);
             });
+
+            // interv order 
+            modelBuilder.Entity<InterventionOrder>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Type).HasConversion<string>();
+                entity.Property(e => e.Status).HasConversion<string>();
+                entity.HasOne(e => e.Operator)
+                      .WithMany()
+                      .HasForeignKey(e => e.OperatorId)
+                      .OnDelete(DeleteBehavior.Restrict);
+                entity.HasOne(e => e.Parkmeter)
+                      .WithMany()
+                      .HasForeignKey(e => e.ParkmeterId)
+                      .OnDelete(DeleteBehavior.Restrict);
+            });
+
+            modelBuilder.Entity<Parkmeter>()
+            .Property(p => p.CashAmount)
+            .HasColumnType("decimal(18,3)");
 
             base.OnModelCreating(modelBuilder);
             

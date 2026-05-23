@@ -7,53 +7,53 @@ using parkmeter_management.Domain.Enums;
 namespace parkmeter_management.Application.Commands.MachineEvents.HandleCashRemoved
 {
     public class HandleCashRemovedCommandHandler
-     : IRequestHandler<HandleCashRemovedCommand, bool>
+        : IRequestHandler<HandleCashRemovedCommand, bool>
     {
         private readonly IAlertRepository _alertRepository;
         private readonly IParkmeterRepository _parkmeterRepository;
         private readonly ISessionRepository _sessionRepository;
-        private readonly IMessagePublisherService _mqttPublisher;
         private readonly INotificationService _notificationService;
-        private readonly IInterventionOrderRepository _interventionOrderRepository; 
+        private readonly IInterventionOrderRepository _interventionOrderRepository;
 
         public HandleCashRemovedCommandHandler(
             IAlertRepository alertRepository,
             IParkmeterRepository parkmeterRepository,
             ISessionRepository sessionRepository,
-            IMessagePublisherService mqttPublisher,
             INotificationService notificationService,
-            IInterventionOrderRepository interventionOrderRepository) 
+            IInterventionOrderRepository interventionOrderRepository)
         {
             _alertRepository = alertRepository;
             _parkmeterRepository = parkmeterRepository;
             _sessionRepository = sessionRepository;
-            _mqttPublisher = mqttPublisher;
             _notificationService = notificationService;
-            _interventionOrderRepository = interventionOrderRepository; 
+            _interventionOrderRepository = interventionOrderRepository;
         }
 
         public async Task<bool> Handle(
             HandleCashRemovedCommand command,
             CancellationToken ct)
         {
-          
-
             // close active session
             var activeSession = await _sessionRepository
                 .GetActiveSessionByParkmeterAsync(command.ParkmeterId);
+
+            var parkmeter = await _parkmeterRepository
+              .GetByIdAsync(command.ParkmeterId); 
 
             if (activeSession != null)
             {
                 activeSession.Status = SessionStatus.CLOSED;
                 activeSession.EndDateTime = DateTime.UtcNow;
                 await _sessionRepository.UpdateAsync(activeSession);
-                Console.WriteLine($"Session closed | " +
-                    $"Total: {activeSession.TotalAmount} DT");
 
                 await _notificationService.NotifySessionClosed(
                     command.ParkmeterId,
+                    parkmeter.SerialNumber,
                     activeSession.TotalAmount,
                     activeSession.TotalTransactions);
+
+                Console.WriteLine(
+                    $"Session closed | Total: {activeSession.TotalAmount} DT");
             }
 
             // open new session
@@ -68,6 +68,15 @@ namespace parkmeter_management.Application.Commands.MachineEvents.HandleCashRemo
             });
             Console.WriteLine("New session started");
 
+            // reset cash amount in DB
+
+            if (parkmeter != null)
+            {
+                parkmeter.CashAmount = 0;
+                await _parkmeterRepository.UpdateAsync(parkmeter);
+                Console.WriteLine($"[CASH_COLLECTED] CashAmount reset to 0");
+            }
+
             // auto resolve cash alerts
             var alerts = await _alertRepository
                 .GetByParkmeterAsync(command.ParkmeterId);
@@ -79,6 +88,10 @@ namespace parkmeter_management.Application.Commands.MachineEvents.HandleCashRemo
                 a.Status = AlertStatus.RESOLVED;
                 a.ResolvedAt = DateTime.UtcNow;
                 await _alertRepository.UpdateAsync(a);
+                await _notificationService.NotifyAlertResolved(  
+                    a.Id,
+                    parkmeter?.SerialNumber ?? string.Empty,
+                    a.ParkmeterId);
                 Console.WriteLine($"Auto-resolved: {a.Type}");
             }
 
@@ -88,61 +101,31 @@ namespace parkmeter_management.Application.Commands.MachineEvents.HandleCashRemo
                     command.ParkmeterId,
                     InterventionType.CASH_COLLECTION);
 
-
             if (pendingOrder != null)
             {
                 pendingOrder.Status = InterventionOrderStatus.COMPLETED;
                 pendingOrder.CompletedAt = DateTime.UtcNow;
-                await _interventionOrderRepository
-                    .UpdateAsync(pendingOrder);
-                Console.WriteLine($"Intervention order completed: " +
-                    $"{pendingOrder.Id}");
+                await _interventionOrderRepository.UpdateAsync(pendingOrder);
 
-                await _notificationService
-                    .NotifyInterventionOrderCompleted(
-                        pendingOrder.Id,
-                        command.ParkmeterId,
-                        pendingOrder.CompletedAt.Value);
-            }
-
-            // check stillBlocked
-            var remaining = await _alertRepository
-                .GetByParkmeterAsync(command.ParkmeterId);
-            var stillBlocked = remaining.Any(a =>
-                a.Status == AlertStatus.NOT_RESOLVED &&
-                (a.Type == AlertType.PAPER_EMPTY ||
-                 a.Type == AlertType.HARDWARE_FAILURE ||
-                 a.Type == AlertType.DOOR_OPEN));
-
-            // if not blocked revert to in_service
-            var parkmeter = await _parkmeterRepository
-                .GetByIdAsync(command.ParkmeterId);
-
-            var anyOtherPendingOrder = await _interventionOrderRepository
-                .GetPendingByParkmeterAndTypeAsync(
+                await _notificationService.NotifyInterventionOrderCompleted(
+                    pendingOrder.Id,
+                    parkmeter.SerialNumber,
                     command.ParkmeterId,
-                    InterventionType.PAPER_REFILL); 
+                    pendingOrder.CompletedAt.Value);
 
-            if (!stillBlocked && parkmeter != null &&
-                (parkmeter.Status ==
-                    MeterStatus.TEMPORARILY_UNAVAILABLE ||
-                 parkmeter.Status ==
-                    MeterStatus.MAINTENANCE) &&
-                 anyOtherPendingOrder == null) //  only if no other pending 
-            {
-                parkmeter.Status = MeterStatus.IN_SERVICE;
-                await _parkmeterRepository.UpdateAsync(parkmeter);
-                await _mqttPublisher.PublishStatusAsync(
-                    command.ParkmeterId,
-                    MeterStatus.IN_SERVICE.ToString());
                 Console.WriteLine(
-                    $"{parkmeter.SerialNumber} : IN_SERVICE");
+                    $"Intervention order completed: {pendingOrder.Id}");
             }
+
+            // no status push — machine will report IN_SERVICE itself
+            // via parkmeters/{id}/status topic after evaluating its conditions
+            Console.WriteLine(
+                $"[CASH_COLLECTED] processed — " +
+                $"machine will report its own status");
 
             return true;
         }
     }
 }
-
 
 

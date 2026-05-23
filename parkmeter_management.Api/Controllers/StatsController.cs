@@ -25,7 +25,7 @@ namespace parkmeter_management.Api.Controllers
         }
 
         // ── Overview ──────────────────────────────────────────────
-
+        [Authorize(Roles = "GESTIONNAIRE_SYSTEME,SUPERVISEUR")]
         [HttpGet("overview")]
         public async Task<IActionResult> GetOverview()
         {
@@ -37,7 +37,6 @@ namespace parkmeter_management.Api.Controllers
                 TotalParkmeters = result.TotalParkmeters,
                 InService = result.InService,
                 TemporarilyUnavailable = result.TemporarilyUnavailable,
-                Maintenance = result.Maintenance,
                 OutOfService = result.OutOfService,
                 PendingActivation = result.PendingActivation,
                 UnresolvedAlerts = result.UnresolvedAlerts,
@@ -74,7 +73,6 @@ namespace parkmeter_management.Api.Controllers
                 CompletedTransactions = result.CompletedTransactions,
                 FailedTransactions = result.FailedTransactions,
                 CancelledTransactions = result.CancelledTransactions,
-                ExpiredTransactions = result.ExpiredTransactions,
                 From = result.From,
                 To = result.To
             });
@@ -140,6 +138,7 @@ namespace parkmeter_management.Api.Controllers
 
         // ── Alerts ────────────────────────────────────────────────
 
+        [Authorize(Roles = "GESTIONNAIRE_SYSTEME,SUPERVISEUR")]
         [HttpGet("alerts")]
         public async Task<IActionResult> GetAlertsSummary()
         {
@@ -157,6 +156,7 @@ namespace parkmeter_management.Api.Controllers
         }
 
         // ── Sessions ──────────────────────────────────────────────
+        [Authorize]
 
         [HttpGet("sessions/{parkmeterID}/current")]
         public async Task<IActionResult> GetCurrentSession(

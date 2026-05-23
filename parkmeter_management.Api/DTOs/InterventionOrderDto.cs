@@ -4,6 +4,7 @@
     {
         public Guid Id { get; set; }
         public Guid ParkmeterId { get; set; }
+        public string ParkmeterSerial { get; set; } = string.Empty;  
         public Guid OperatorId { get; set; }
         public string OperatorName { get; set; }
             = string.Empty;

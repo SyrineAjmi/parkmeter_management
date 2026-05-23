@@ -3,6 +3,8 @@
     public enum InterventionType
     {
         CASH_COLLECTION,
-        PAPER_REFILL
+        PAPER_REFILL,
+        HARDWARE_REPAIR  
+
     }
 }

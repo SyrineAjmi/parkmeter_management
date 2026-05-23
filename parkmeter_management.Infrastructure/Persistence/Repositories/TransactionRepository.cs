@@ -22,7 +22,10 @@ namespace parkmeter_management.Infrastructure.Persistence.Repositories
 
         public async Task<IEnumerable<Transaction>> GetAllAsync()
         {
-            return await _context.Transactions.ToListAsync();
+            return await _context.Transactions
+                 .Include(t => t.Parkmeter)
+                 .OrderByDescending(t => t.CreatedAt)
+                 .ToListAsync();
         }
 
         public async Task<Transaction?> GetByIdAsync(Guid id)
@@ -34,14 +37,18 @@ namespace parkmeter_management.Infrastructure.Persistence.Repositories
             Guid parkmeterId)
         {
             return await _context.Transactions
+                .Include(t => t.Parkmeter)
                 .Where(t => t.ParkmeterId == parkmeterId)
+                .OrderByDescending(t => t.CreatedAt)
                 .ToListAsync();
         }
         public async Task<IEnumerable<Transaction>> GetByStatusAsync(
             TransactionStatus status)
         {
             return await _context.Transactions
+                .Include(t => t.Parkmeter)
                 .Where(t => t.Status == status)
+                .OrderByDescending(t => t.CreatedAt)
                 .ToListAsync();
         }
 

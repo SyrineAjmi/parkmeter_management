@@ -3,35 +3,31 @@ using MQTTnet.Client;
 using parkmeter_management.Domain.Enums;
 using System.Text.Json;
 
-namespace parkmeter_management.SimulatorCore 
+namespace parkmeter_management.SimulatorCore
 {
-    public class ParkMeterSimulator // behaviour of a parkmeter
-
+    public class ParkMeterSimulator
     {
         // constants
-        private const int CASH_WARN_THRESHOLD = 80;
-        private const int CASH_FULL_THRESHOLD = 100;
         private const int PAPER_LOW_THRESHOLD = 20;
         private const int PAPER_EMPTY_THRESHOLD = 5;
         private const int HARDWARE_FAILURE_CHANCE = 500;
 
-
         private readonly ParkMeterState _state;
-        private readonly Random _random = new(); // for random
+        private readonly Random _random = new();
         private IMqttClient? _client;
 
-        public ParkMeterSimulator(ParkMeterState state) // state shared across all methods
+        private readonly Action<string, string>? _logCallback;
+
+        public ParkMeterSimulator(ParkMeterState state)
         {
             _state = state;
         }
 
+        // ── Public properties ─────────────────────────────────
 
-        //----------------------------------------------------------
-
-        // public properties for simulator
         public bool HasConfig => _state.HasConfig;
         public string Status => _state.Status;
-        public int CashLevel => _state.CashLevel;
+        public decimal CashAmount => _state.CashAmount; 
         public int PaperLevel => _state.PaperLevel;
         public bool HardwareFailure => _state.HardwareFailure;
         public bool DoorOpen => _state.DoorOpen;
@@ -43,59 +39,51 @@ namespace parkmeter_management.SimulatorCore
         public bool PaperEmptyAlertSent => _state.PaperEmptyAlertSent;
         public string SerialNumber => _state.SerialNumber;
         public string StrategyType => _state.StrategyType;
+        public int TransactionCount => _state.TransactionCount;
 
+        // ── Lifecycle ─────────────────────────────────────────
 
-        //----------------------------------------------------------
-
-        // lifecycle
-        // start
         public async Task RunAsync(CancellationToken ct = default)
         {
+            _client = new MqttFactory().CreateMqttClient(); // ← create ONCE
+            RegisterMessageListener(ct); // ← register ONCE
+
             while (!ct.IsCancellationRequested)
             {
-                _client = new MqttFactory().CreateMqttClient();
-
                 if (!await ConnectWithRetryAsync(ct)) return;
 
-                RegisterMessageListener(ct);
-
+                // subscribe every reconnect
                 await _client.SubscribeAsync(
                     $"parkmeters/{_state.Id}/config",
                     cancellationToken: ct);
-
                 await _client.SubscribeAsync(
-                    $"parkmeters/{_state.Id}/status",
+                    $"parkmeters/{_state.Id}/command",
                     cancellationToken: ct);
 
-                // publish reconnected if CONNECTION_LOST
                 if (_state.WasConnectionLost)
                 {
                     await PublishEventAsync(MachineEventType.MACHINE_RECONNECTED);
-                    _state.WasConnectionLost = false; 
-                    Log("Reconnected → notified backend",
-                        ConsoleColor.Green);
+                    _state.WasConnectionLost = false;
+                    await PublishStatusAsync(_state.Status);
+                    Log("Reconnected → notified backend", ConsoleColor.Green);
                 }
                 else
                 {
-                    // publish online on first start
                     await PublishEventAsync(MachineEventType.MACHINE_ONLINE);
-
-                    Log("Online → notified backend",
-                        ConsoleColor.Green);
+                    Log("Online → notified backend", ConsoleColor.Green);
                 }
 
                 await RunSimulationLoopAsync(ct);
 
                 if (_state.IsOffline && !_state.IsConnectionLost)
                 {
-                    Log("Power failure parkmeter stopped",
-                        ConsoleColor.Red);
+                    Log("Power failure — stopped", ConsoleColor.Red);
                     return;
                 }
 
                 if (_state.IsConnectionLost)
                 {
-                    Log("Connection lost attempting reconnect...",
+                    Log("Connection lost — attempting reconnect...",
                         ConsoleColor.Yellow);
                     _state.IsConnectionLost = false;
                     _state.IsOffline = false;
@@ -104,91 +92,229 @@ namespace parkmeter_management.SimulatorCore
             }
         }
 
-        //----------------------------------------------------------
+        // ── Stop ──────────────────────────────────────────────
 
-        // stop
         public async Task StopAsync()
         {
             if (_client != null && _client.IsConnected)
             {
+                _state.IsIntentionalDisconnect = true; 
                 await _client.DisconnectAsync();
                 Log("Powered OFF", ConsoleColor.Red);
             }
         }
 
-        //----------------------------------------------------------
+        // ── Test mode ─────────────────────────────────────────
 
-        // test mode
         public async Task TriggerAlertAsync(AlertType alertType)
         {
+            if (alertType.HasFlag(AlertType.CASH_BOX_WARN))
+                _state.CashAmount = _state.CashWarnThreshold;
+
+            if (alertType.HasFlag(AlertType.CASH_BOX_FULL))
+                _state.CashAmount = _state.CashFullThreshold;
+
+            if (alertType.HasFlag(AlertType.PAPER_LOW))
+                _state.PaperLevel = 15;
+
+            if (alertType.HasFlag(AlertType.PAPER_EMPTY))
+                _state.PaperLevel = 0;
+
             await SendAlertAndUpdateStateAsync(alertType);
-            Log($"[TEST] Triggered: {alertType} ({(int)alertType})",
-                ConsoleColor.Magenta);
+            await PublishTelemetryAsync();
         }
 
-        //----------------------------------------------------------
+        // ── Agent actions ─────────────────────────────────────
 
-        //   operator actions 
         public async Task EmptyCashBoxAsync()
         {
-            _state.CashLevel = 0;
+            _state.CashAmount = 0;
             _state.CashBoxWarnSent = false;
             _state.CashBoxAlertSent = false;
-            _state.DoorOpen = false;
+            _state.TransactionCount = 0;
+            SaveState(); 
 
-            // specific topic 
+
             await PublishEventAsync(MachineEventType.CASH_COLLECTED);
+            await PublishTelemetryAsync();
 
-            Log("Cash box emptied → transactions will resume",
-                ConsoleColor.Green);
+            // machine reports its status
+
+            if (CanBeInService() && _state.Status != "IN_SERVICE" )
+            {
+                _state.Status = "IN_SERVICE";
+                await PublishStatusAsync("IN_SERVICE");
+                Log("Caisse vidée → EN_SERVICE", ConsoleColor.Green);
+            }
+            else if (CanBeInService())
+            {
+                Log("Caisse vidée — déjà EN_SERVICE", ConsoleColor.Green);
+            }
+            else
+            {
+                Log("Caisse vidée — autres conditions bloquantes",
+                    ConsoleColor.Yellow);
+            }
         }
 
         public async Task RefillPaperAsync()
         {
-
             _state.PaperLevel = 100;
             _state.PaperAlertSent = false;
             _state.PaperEmptyAlertSent = false;
-            _state.DoorOpen = false;
+            SaveState(); 
 
-            // specofic topic
             await PublishEventAsync(MachineEventType.PAPER_REFILLED);
 
-            Log("Paper refilled : transactions will resume",
-                ConsoleColor.Green);
+            // machine evaluates and reports its own status
+            if (CanBeInService() && _state.Status != "IN_SERVICE")
+            {
+                _state.Status = "IN_SERVICE";
+                await PublishStatusAsync("IN_SERVICE");
+                Log("Papier rechargé → EN_SERVICE",
+                    ConsoleColor.Green);
+            }
+            else if (CanBeInService())
+            {
+                Log("Papier rechargé — déjà EN_SERVICE", ConsoleColor.Green);
+            }
+            else
+            {
+                Log("Papier rechargé — autres conditions bloquantes",
+                    ConsoleColor.Yellow);
+            }
         }
 
-        public async Task CloseDoorAsync() 
+        public async Task CloseDoorAsync()
         {
             _state.DoorOpen = false;
+            SaveState();
 
-            // notify backend door is close
+
             await PublishEventAsync(MachineEventType.DOOR_CLOSED);
 
-
-            Log("Door closed..",
-                ConsoleColor.Green);
+            // machine evaluates and reports its own status
+            if (CanBeInService() && _state.Status != "IN_SERVICE")
+            {
+                _state.Status = "IN_SERVICE";
+                await PublishStatusAsync("IN_SERVICE");
+                Log("Porte fermée → EN_SERVICE",
+                    ConsoleColor.Green);
+            }
+            else if (CanBeInService())
+            {
+                Log("Porte fermée — déjà EN_SERVICE", ConsoleColor.Green);
+            }
+            else
+            {
+                Log("Porte fermée — autres conditions bloquantes",
+                    ConsoleColor.Yellow);
+            }
         }
 
-        //----------------------------------------------------------
+        public async Task FixHardwareAsync()
+        {
+            _state.HardwareFailure = false;
+            SaveState(); 
 
-        // connection 
 
-        // resilient connection 
-        private async Task<bool> ConnectWithRetryAsync(CancellationToken ct)
+            await PublishEventAsync(MachineEventType.HARDWARE_FIXED);
+
+            Log("Hardware failure cleared", ConsoleColor.Green);
+
+            if (CanBeInService() && _state.Status != "IN_SERVICE")
+            {
+                _state.Status = "IN_SERVICE";
+                await PublishStatusAsync("IN_SERVICE");
+                Log("Hardware fixed → EN_SERVICE", ConsoleColor.Green);
+            }
+            else if (CanBeInService())
+            {
+                Log("Hardware fixed — déjà EN_SERVICE", ConsoleColor.Green);
+            }
+            else
+            {
+                Log("Hardware fixed — autres conditions bloquantes", ConsoleColor.Yellow);
+            }
+        }
+
+        public static void RestoreStateFromFile(ParkMeterState state)
+        {
+            try
+            {
+                var statePath = $"state_{state.SerialNumber}.json";
+                if (!File.Exists(statePath)) return;
+
+                var json = File.ReadAllText(statePath);
+                var saved = JsonSerializer.Deserialize<JsonElement>(json);
+
+                state.CashAmount = saved.GetProperty("CashAmount").GetDecimal();
+                state.CashBoxAlertSent = saved.GetProperty("CashBoxAlertSent").GetBoolean();
+                state.CashBoxWarnSent = saved.GetProperty("CashBoxWarnSent").GetBoolean();
+                state.PaperLevel = saved.GetProperty("PaperLevel").GetInt32();
+                state.PaperEmptyAlertSent = saved.GetProperty("PaperEmptyAlertSent").GetBoolean();
+                state.PaperAlertSent = saved.GetProperty("PaperAlertSent").GetBoolean();
+                state.HardwareFailure = saved.GetProperty("HardwareFailure").GetBoolean();
+                state.DoorOpen = saved.GetProperty("DoorOpen").GetBoolean();
+            }
+            catch { }
+        }
+        private bool CanBeInService()
+        {
+            var result = _state.HasConfig
+                && _state.CashAmount < _state.CashFullThreshold
+                && !_state.CashBoxAlertSent
+                && _state.PaperLevel > 0
+                && !_state.PaperEmptyAlertSent
+                && !_state.HardwareFailure
+                && !_state.DoorOpen
+                && _state.Status != "OUT_OF_SERVICE";
+
+            Log($"CanBeInService: {result} | " +
+                $"Cash:{_state.CashAmount:F1} | " +
+                $"CashAlert:{_state.CashBoxAlertSent} | " +
+                $"Paper:{_state.PaperLevel} | " +
+                $"PaperAlert:{_state.PaperEmptyAlertSent} | " +
+                $"HW:{_state.HardwareFailure} | " +
+                $"Door:{_state.DoorOpen} | " +
+                $"Status:{_state.Status}",
+                ConsoleColor.DarkGray);
+
+            return result;
+        }
+
+        private bool CanBeInServiceFromCommand()
+        {
+            return _state.HasConfig
+                && _state.CashAmount < _state.CashFullThreshold
+                && _state.PaperLevel > 0
+                && !_state.CashBoxAlertSent
+                && !_state.PaperEmptyAlertSent
+                && !_state.HardwareFailure
+                && !_state.DoorOpen;
+        }
+
+        // ── Connection ────────────────────────────────────────
+
+        private async Task<bool> ConnectWithRetryAsync(
+            CancellationToken ct)
         {
             var options = new MqttClientOptionsBuilder()
                 .WithTcpServer("localhost", 1883)
                 .WithClientId($"simulator-{_state.SerialNumber}")
                 .Build();
 
-            for (int attempt = 1; attempt <= 5; attempt++) // tries multiple times before giving up
+            for (int attempt = 1; attempt <= 5; attempt++)
             {
                 try
                 {
                     await _client!.ConnectAsync(options, ct);
                     Log("Connected to broker", ConsoleColor.Green);
                     return true;
+                }
+                catch (OperationCanceledException)
+                {
+                    return false;
                 }
                 catch
                 {
@@ -198,17 +324,40 @@ namespace parkmeter_management.SimulatorCore
                 }
             }
 
-            Log("Could not connect after 5 attempts.", ConsoleColor.Red);
+            Log("Could not connect after 5 attempts.",
+                ConsoleColor.Red);
             return false;
         }
 
-        // listen for backend messages 
+        private void SaveState()
+        {
+            try
+            {
+                var statePath = $"state_{_state.SerialNumber}.json";
+                var stateToSave = new
+                {
+                    CashAmount = _state.CashAmount,
+                    CashBoxAlertSent = _state.CashBoxAlertSent,
+                    CashBoxWarnSent = _state.CashBoxWarnSent,
+                    PaperLevel = _state.PaperLevel,
+                    PaperEmptyAlertSent = _state.PaperEmptyAlertSent,
+                    PaperAlertSent = _state.PaperAlertSent,
+                    HardwareFailure = _state.HardwareFailure,
+                    DoorOpen = _state.DoorOpen
+                };
+                File.WriteAllText(statePath,
+                    JsonSerializer.Serialize(stateToSave));
+            }
+            catch { }
+        }
         private void RegisterMessageListener(CancellationToken ct)
         {
             _client!.DisconnectedAsync += async e =>
             {
                 if (ct.IsCancellationRequested) return;
-                if (_state.IsOffline && !_state.IsConnectionLost) return;
+                if (_state.IsIntentionalDisconnect) return; 
+                if (_state.IsOffline && !_state.IsConnectionLost)
+                    return;
 
                 Log("Unexpected disconnection — will reconnect...",
                     ConsoleColor.Yellow);
@@ -218,30 +367,38 @@ namespace parkmeter_management.SimulatorCore
                 _state.WasConnectionLost = true;
             };
 
-            _client!.ApplicationMessageReceivedAsync += e => 
+            _client!.ApplicationMessageReceivedAsync += e =>
             {
                 var topic = e.ApplicationMessage.Topic;
-                var payload = e.ApplicationMessage.ConvertPayloadToString();
+                var payload = e.ApplicationMessage
+                    .ConvertPayloadToString();
 
                 try
                 {
                     if (topic.EndsWith("/config"))
                         ApplyConfig(payload);
-                    else if (topic.EndsWith("/status"))
-                        ApplyStatus(payload);
+                    else if (topic.EndsWith("/command"))
+                        ApplyCommand(payload);
+                    // ↑ NEW — machine receives management commands
                 }
                 catch (Exception ex)
                 {
-                    Log($"Message error: {ex.Message}", ConsoleColor.Red);
+                    Log($"Message error: {ex.Message}",
+                        ConsoleColor.Red);
                 }
 
                 return Task.CompletedTask;
             };
         }
 
+        // ── Config reception ──────────────────────────────────
+
         private void ApplyConfig(string payload)
         {
-            var raw = JsonSerializer.Deserialize<JsonElement>(payload);
+            var raw = JsonSerializer.Deserialize<JsonElement>(
+                payload,
+                new JsonSerializerOptions
+                { PropertyNameCaseInsensitive = true });
 
             _state.MaxDuration = raw
                 .GetProperty("maxDuration").GetInt32();
@@ -252,7 +409,6 @@ namespace parkmeter_management.SimulatorCore
 
             var parameters = pricing.GetProperty("parameters");
 
-            // reset rates
             _state.PricePerHour = 0;
             _state.PeakRate = 0;
             _state.OffPeakRate = 0;
@@ -265,14 +421,12 @@ namespace parkmeter_management.SimulatorCore
                     _state.PricePerHour = parameters
                         .GetProperty("pricePerHour").GetDecimal();
                     break;
-
                 case "TIME_OF_DAY":
                     _state.PeakRate = parameters
                         .GetProperty("peakRate").GetDecimal();
                     _state.OffPeakRate = parameters
                         .GetProperty("offPeakRate").GetDecimal();
                     break;
-
                 case "WEEKDAY_WEEKEND":
                     _state.WeekdayRate = parameters
                         .GetProperty("weekdayRate").GetDecimal();
@@ -286,73 +440,92 @@ namespace parkmeter_management.SimulatorCore
             Log($"Config received: Strategy={_state.StrategyType} | " +
                 $"MaxDuration={_state.MaxDuration} min",
                 ConsoleColor.Cyan);
-        }
 
-
-        private void ApplyStatus(string payload)
-        {
-            var newStatus = payload.Trim();
-            if (newStatus == _state.Status) return;
-
-            var old = _state.Status;
-            _state.Status = newStatus;
-            if (newStatus == "IN_SERVICE")
+            if (_state.Status == "PENDING_ACTIVATION")
             {
-                _state.IsOffline = false;
-                _state.HardwareFailure = false;
-                _state.DoorOpen = false;
-                _state.PowerFailureAlertSent = false; 
-
-                // reset cash if was blocked
-                if (_state.CashBoxAlertSent)
+                if (CanBeInService())
                 {
-                    _state.CashLevel = 0;
-                    _state.CashBoxWarnSent = false;
-                    _state.CashBoxAlertSent = false;
-                }
-
-                // reset paper if was blocked
-                if (_state.PaperEmptyAlertSent)
-                {
-                    _state.PaperLevel = 100;
-                    _state.PaperAlertSent = false;
-                    _state.PaperEmptyAlertSent = false;
+                    _state.Status = "IN_SERVICE";
+                    _ = PublishStatusAsync("IN_SERVICE");
+                    Log("Config applied → EN_SERVICE", ConsoleColor.Green);
                 }
             }
-
-            var color = newStatus switch
-            {
-                "IN_SERVICE" => ConsoleColor.Green,
-                "TEMPORARILY_UNAVAILABLE" => ConsoleColor.Yellow,
-                "OUT_OF_SERVICE" => ConsoleColor.Red,
-                "MAINTENANCE" => ConsoleColor.DarkYellow,
-                _ => ConsoleColor.White
-            };
-
-            Log($"Status: {old} to {newStatus}", color);
         }
 
-        //----------------------------------------------------------
 
-        // simulation loop 
+        // ── Command reception (management decisions) ──────────
+
+        private void ApplyCommand(string payload)
+        {
+            var raw = JsonSerializer.Deserialize<JsonElement>(
+                payload,
+                new JsonSerializerOptions
+                { PropertyNameCaseInsensitive = true });
+
+            var command = raw.GetProperty("command").GetString()!;
+
+            Log($"Command received: {command}", ConsoleColor.Magenta);
+
+            switch (command)
+            {
+                case "SET_OUT_OF_SERVICE":
+                    if (_state.Status == "OUT_OF_SERVICE")
+                    {
+                        Log("Already OUT_OF_SERVICE — command ignored",
+                            ConsoleColor.Yellow);
+                        _ = PublishStatusAsync(_state.Status); 
+                        break;
+                    }
+                    _state.Status = "OUT_OF_SERVICE";
+                     _ = PublishStatusAsync("OUT_OF_SERVICE");
+                    Log("Command applied → HORS_SERVICE", ConsoleColor.Red);
+                    break;
+
+                case "SET_IN_SERVICE":
+                    if (CanBeInServiceFromCommand()) 
+                    {
+                        _state.Status = "IN_SERVICE";
+                        _ = PublishStatusAsync("IN_SERVICE");
+                        Log("Command applied → EN_SERVICE", ConsoleColor.Green);
+                    }
+                    else
+                    {
+                        _ = PublishStatusAsync(_state.Status);
+                        Log("Command SET_IN_SERVICE rejected — " +
+                            "physical conditions not met",
+                            ConsoleColor.Yellow);
+                    }
+                    break;
+
+                default:
+                    Log($"Unknown command: {command}",
+                        ConsoleColor.Yellow);
+                    break;
+            }
+        }
+
+        // ── Simulation loop ───────────────────────────────────
+
         private async Task RunSimulationLoopAsync(CancellationToken ct)
         {
             while (!ct.IsCancellationRequested)
             {
                 try
                 {
+                    if (_state.IsIntentionalDisconnect)
+                        return;
+
                     if (_state.IsOffline)
                     {
-                        Log("Disconnecting from broker...", ConsoleColor.Red);
+                        Log("Disconnecting...",
+                            ConsoleColor.Red);
                         await StopAsync();
                         return;
                     }
 
                     if (!_state.HasConfig)
-                    {
                         Log("No configuration — waiting for config push...",
                             ConsoleColor.Yellow);
-                    }
                     else
                     {
                         await HandleCurrentStatusAsync();
@@ -372,7 +545,6 @@ namespace parkmeter_management.SimulatorCore
             }
         }
 
-        // routing by status  
         private async Task HandleCurrentStatusAsync()
         {
             switch (_state.Status)
@@ -384,43 +556,39 @@ namespace parkmeter_management.SimulatorCore
                     Log("Temporarily unavailable...",
                         ConsoleColor.Yellow);
                     break;
-                case "MAINTENANCE":
-                    Log("Under maintenance...",
-                        ConsoleColor.DarkYellow);
-                    break;
                 default:
-                    Log($"Status: {_state.Status} — waiting for activation...",
+                    Log($"Status: {_state.Status} — " +
+                        $"waiting for activation...",
                         ConsoleColor.Yellow);
                     break;
             }
-
         }
 
-        //handling normal operation
         private async Task HandleInServiceAsync()
         {
-            // Check blocking conditions
-            if (_state.CashLevel >= CASH_FULL_THRESHOLD)
+
+            if (_state.IsIntentionalDisconnect || _state.IsOffline)
+                return;
+
+            if (_state.CashAmount >= _state.CashFullThreshold)
             {
-                Log("Cash box full — waiting for emptying...",
+                Log($"Cash box full ({_state.CashAmount:F3} DT) — " +
+                    "waiting for emptying...",
                     ConsoleColor.Red);
                 return;
             }
-
             if (_state.PaperLevel <= 0)
             {
                 Log("No paper — waiting for refill...",
                     ConsoleColor.Red);
                 return;
             }
-
             if (_state.HardwareFailure)
             {
                 Log("Hardware failure — waiting for fix...",
                     ConsoleColor.Red);
                 return;
             }
-
             if (_state.DoorOpen)
             {
                 Log("Door open — waiting for close...",
@@ -428,27 +596,37 @@ namespace parkmeter_management.SimulatorCore
                 return;
             }
 
-            // send transaction
             var (amount, duration, status) =
                 await SendTransactionAsync();
-            UpdateState(status);
+            if (_state.Status == "IN_SERVICE")
+            { 
+                UpdateState(status);
             LogTransaction(amount, duration, status);
+            await PublishTelemetryAsync();
+            }
         }
 
-        //----------------------------------------------------------
+        // ── Transactions ──────────────────────────────────────
 
-        //  transactions 
-
-        private async Task<(decimal amount, int duration, TransactionStatus status)>
-        SendTransactionAsync()
+        private async Task<(decimal amount, int duration,
+            TransactionStatus status)> SendTransactionAsync()
         {
+            if (_state.Status != "IN_SERVICE")
+            {
+                Log("Status changed — skipping transaction",
+                    ConsoleColor.Yellow);
+                return (0, 0, TransactionStatus.CANCELLED);
+            }
+
             var duration = _random.Next(15, _state.MaxDuration);
             var now = DateTime.UtcNow;
             var status = GetTransactionStatus();
-
             var amount = status == TransactionStatus.COMPLETED
                 ? CalculateAmount(duration, now)
                 : 0;
+
+            if (status == TransactionStatus.COMPLETED)
+                _state.CashAmount += amount;
 
             await PublishAsync(
                 $"parkmeters/{_state.Id}/transactions",
@@ -471,8 +649,7 @@ namespace parkmeter_management.SimulatorCore
             {
                 < 85 => TransactionStatus.COMPLETED,
                 < 90 => TransactionStatus.FAILED,
-                < 95 => TransactionStatus.CANCELLED,
-                _ => TransactionStatus.EXPIRED
+                _ => TransactionStatus.CANCELLED
             };
         }
 
@@ -483,8 +660,10 @@ namespace parkmeter_management.SimulatorCore
                 ? ConsoleColor.Green
                 : ConsoleColor.Yellow;
 
-            Log($"Transaction: {amount} DT / {duration} min | " +
-                $"Status: {status} | " + $"Cash: {_state.CashLevel}% | Paper: {_state.PaperLevel}%",
+            Log($"Transaction: {amount:F3} DT / {duration} min | " +
+                $"Status: {status} | " +
+                $"Cash: {_state.CashAmount:F3} DT | " +
+                $"Paper: {_state.PaperLevel}%",
                 color);
         }
 
@@ -494,45 +673,59 @@ namespace parkmeter_management.SimulatorCore
 
             if (status == TransactionStatus.COMPLETED)
             {
-                _state.CashLevel = Math.Min(100,
-                    _state.CashLevel + _random.Next(
-                        _state.CashFillPerTick - 2,
-                        _state.CashFillPerTick + 5));
-
                 _state.PaperLevel = Math.Max(0,
                     _state.PaperLevel - _random.Next(
                         _state.PaperUsePerTick - 1,
                         _state.PaperUsePerTick + 2));
             }
+            SaveState();
         }
 
-        //----------------------------------------------------------
+        private decimal CalculateAmount(
+            int durationMinutes, DateTime time)
+        {
+            return _state.StrategyType switch
+            {
+                "TIME_OF_DAY" =>
+                    time.Hour >= 8 && time.Hour < 18
+                        ? Math.Round(
+                            _state.PeakRate * durationMinutes / 60, 3)
+                        : Math.Round(
+                            _state.OffPeakRate * durationMinutes / 60, 3),
 
-        // alert checking
+                "WEEKDAY_WEEKEND" =>
+                    time.DayOfWeek == DayOfWeek.Saturday ||
+                    time.DayOfWeek == DayOfWeek.Sunday
+                        ? Math.Round(
+                            _state.WeekendRate * durationMinutes / 60, 3)
+                        : Math.Round(
+                            _state.WeekdayRate * durationMinutes / 60, 3),
 
-        // every time calls in order on to see if there are problems
+                _ => Math.Round(
+                    _state.PricePerHour * durationMinutes / 60, 3)
+            };
+        }
+
+        // ── Alert checking ────────────────────────────────────
+
         private async Task CheckAndSendAlertsAsync()
         {
             await CheckCashBoxAsync();
             await CheckPaperAsync();
             await CheckRandomHardwareAsync();
         }
-         
 
-        // monitoring cash levels
         private async Task CheckCashBoxAsync()
         {
-            if (_state.CashLevel >= CASH_WARN_THRESHOLD
-                && !_state.CashBoxWarnSent) //prevent duplic
+            if (_state.CashAmount >= _state.CashWarnThreshold
+                && !_state.CashBoxWarnSent)
                 await SendAlertAndUpdateStateAsync(AlertType.CASH_BOX_WARN);
 
-            if (_state.CashLevel >= CASH_FULL_THRESHOLD
-                && !_state.CashBoxAlertSent)//prevent duplic
+            if (_state.CashAmount >= _state.CashFullThreshold
+                && !_state.CashBoxAlertSent)
                 await SendAlertAndUpdateStateAsync(AlertType.CASH_BOX_FULL);
         }
 
-
-        //monitoring paper levels
         private async Task CheckPaperAsync()
         {
             if (_state.PaperLevel <= PAPER_LOW_THRESHOLD
@@ -544,93 +737,113 @@ namespace parkmeter_management.SimulatorCore
                 await SendAlertAndUpdateStateAsync(AlertType.PAPER_EMPTY);
         }
 
-
-        // random failures (avg 1 hardw failure every 2H)
         private async Task CheckRandomHardwareAsync()
         {
-            {
-                if (!_state.HardwareFailure &&
-                    _random.Next(HARDWARE_FAILURE_CHANCE) == 0)
-                    await SendAlertAndUpdateStateAsync(AlertType.HARDWARE_FAILURE);
-            }
+            if (!_state.HardwareFailure &&
+                _random.Next(HARDWARE_FAILURE_CHANCE) == 0)
+                await SendAlertAndUpdateStateAsync(
+                    AlertType.HARDWARE_FAILURE);
         }
 
-
-        // core alert logic
-        private async Task SendAlertAndUpdateStateAsync(AlertType alertType)
+        private async Task SendAlertAndUpdateStateAsync(
+            AlertType alertType)
         {
-            await SendAlertAsync(alertType);// send alert to backend
-            UpdateLocalState(alertType); // update local state
+            await SendAlertAsync(alertType);
+            UpdateLocalState(alertType);
         }
 
-        private void UpdateLocalState(AlertType alertType) 
+        private void UpdateLocalState(AlertType alertType)
         {
-
             if (alertType.HasFlag(AlertType.CASH_BOX_WARN))
             {
-                _state.CashLevel = Math.Max(_state.CashLevel, 65); 
+                if (_state.CashAmount < _state.CashWarnThreshold)
+                    _state.CashAmount = _state.CashWarnThreshold;
                 _state.CashBoxWarnSent = true;
-                Log($"CASH_BOX_WARN ({_state.CashLevel}%)", ConsoleColor.Yellow);
+                Log($"CASH_BOX_WARN ({_state.CashAmount:F3} DT)",
+                    ConsoleColor.Yellow);
             }
 
             if (alertType.HasFlag(AlertType.CASH_BOX_FULL))
             {
-                _state.CashLevel = 100;
+                _state.CashAmount = _state.CashFullThreshold;
                 _state.CashBoxWarnSent = true;
                 _state.CashBoxAlertSent = true;
-                Log($"CASH_BOX_FULL ({_state.CashLevel}%)", ConsoleColor.Red);
+                if (_state.Status != "TEMPORARILY_UNAVAILABLE" && _state.Status != "OUT_OF_SERVICE") 
+                {
+                    _state.Status = "TEMPORARILY_UNAVAILABLE";
+                    _ = PublishStatusAsync("TEMPORARILY_UNAVAILABLE");
+                }
+                Log($"CASH_BOX_FULL", ConsoleColor.Red);
             }
 
             if (alertType.HasFlag(AlertType.PAPER_LOW))
             {
-                _state.PaperLevel = Math.Min(_state.PaperLevel, 15); 
+                _state.PaperLevel = Math.Min(_state.PaperLevel, 15);
                 _state.PaperAlertSent = true;
-                Log($"PAPER_LOW ({_state.PaperLevel}%)", ConsoleColor.Yellow);
+                Log($"PAPER_LOW ({_state.PaperLevel}%)",
+                    ConsoleColor.Yellow);
             }
 
             if (alertType.HasFlag(AlertType.PAPER_EMPTY))
             {
                 _state.PaperLevel = 0;
+                _state.PaperAlertSent = true;
                 _state.PaperEmptyAlertSent = true;
-                Log("PAPER_EMPTY : transactions stopped", ConsoleColor.Red);
+
+                if (_state.Status != "TEMPORARILY_UNAVAILABLE" && _state.Status != "OUT_OF_SERVICE")
+                {
+                    _state.Status = "TEMPORARILY_UNAVAILABLE";
+                    _ = PublishStatusAsync("TEMPORARILY_UNAVAILABLE");
+                }
+
+                Log("PAPER_EMPTY",
+                    ConsoleColor.Red);
             }
 
-            // hardware
             if (alertType.HasFlag(AlertType.HARDWARE_FAILURE))
             {
                 _state.HardwareFailure = true;
-                Log("HARDWARE_FAILURE : transactions stopped",
+
+                if (_state.Status != "TEMPORARILY_UNAVAILABLE" && _state.Status != "OUT_OF_SERVICE")
+                {
+                    _state.Status = "TEMPORARILY_UNAVAILABLE";
+                    _ = PublishStatusAsync("TEMPORARILY_UNAVAILABLE");
+                }
+
+                Log("HARDWARE_FAILURE",
                     ConsoleColor.Red);
             }
 
             if (alertType.HasFlag(AlertType.DOOR_OPEN))
             {
                 _state.DoorOpen = true;
-                Log("DOOR_OPEN : transactions stopped",
-                    ConsoleColor.Yellow);
-            }
 
-            if (alertType.HasFlag(AlertType.POWER_FAILURE))
-            {
-                if (_state.PowerFailureAlertSent) return; 
-                _state.PowerFailureAlertSent = true;
-                _state.IsOffline = true;
-                _state.IsConnectionLost = false;
-                Log("POWER_FAILURE : going offline...", ConsoleColor.Red);
+                if (_state.Status != "TEMPORARILY_UNAVAILABLE" && _state.Status != "OUT_OF_SERVICE")
+                {
+                    _state.Status = "TEMPORARILY_UNAVAILABLE";
+                    _ = PublishStatusAsync("TEMPORARILY_UNAVAILABLE");
+                }
+
+                Log("DOOR_OPEN",
+                    ConsoleColor.Yellow);
             }
 
             if (alertType.HasFlag(AlertType.CONNECTION_LOST))
             {
                 _state.IsOffline = true;
                 _state.IsConnectionLost = true;
-                _state.WasConnectionLost = true; 
-                Log("CONNECTION_LOST : disconnecting, will reconnect...",
+                _state.WasConnectionLost = true;
+                Log("CONNECTION_LOST — disconnecting, will reconnect...",
                     ConsoleColor.Yellow);
             }
+            SaveState();
+
         }
 
+        // ── MQTT helpers ──────────────────────────────────────
 
-        private async Task PublishEventAsync(MachineEventType eventType)
+        private async Task PublishEventAsync(
+            MachineEventType eventType)
         {
             var envelope = new
             {
@@ -643,30 +856,35 @@ namespace parkmeter_management.SimulatorCore
                 $"parkmeters/{_state.Id}/events", envelope);
         }
 
-
-        // helper for calcul amount 
-        private decimal CalculateAmount(int durationMinutes, DateTime time)
+        private async Task PublishStatusAsync(string status)
         {
-            return _state.StrategyType switch
-            {
-                "TIME_OF_DAY" =>
-                    time.Hour >= 8 && time.Hour < 18
-                        ? Math.Round(_state.PeakRate * durationMinutes / 60, 3)
-                        : Math.Round(_state.OffPeakRate * durationMinutes / 60, 3),
+            // machine reports its own status to backend
+            await PublishAsync(
+                $"parkmeters/{_state.Id}/status",
+                new
+                {
+                    ParkmeterId = _state.Id.ToString(),
+                    Status = status,
+                    CreatedAt = DateTime.UtcNow.ToString("O")
+                });
 
-                "WEEKDAY_WEEKEND" =>
-                    time.DayOfWeek == DayOfWeek.Saturday ||
-                    time.DayOfWeek == DayOfWeek.Sunday
-                        ? Math.Round(_state.WeekendRate * durationMinutes / 60, 3)
-                        : Math.Round(_state.WeekdayRate * durationMinutes / 60, 3),
-
-                _ => Math.Round(_state.PricePerHour * durationMinutes / 60, 3)
-            };
+            Log($"Status published → {status}",
+                ConsoleColor.DarkCyan);
         }
 
-        //----------------------------------------------------------
+        private async Task PublishTelemetryAsync()
+        {
+            await PublishAsync(
+                $"parkmeters/{_state.Id}/telemetry",
+                new
+                {
+                    ParkmeterId = _state.Id.ToString(),
+                    CashAmount = _state.CashAmount,      
+                    TransactionCount = _state.TransactionCount,
+                    CreatedAt = DateTime.UtcNow.ToString("O")
+                });
+        }
 
-        //  MQTT 
         private async Task SendAlertAsync(AlertType alertType)
         {
             await PublishAsync(
@@ -683,8 +901,8 @@ namespace parkmeter_management.SimulatorCore
         {
             if (_client?.IsConnected != true)
             {
-                Log($"[WARN] Cannot publish — not connected",
-                    ConsoleColor.Yellow);
+                Log($"[OFFLINE] Cannot publish to {topic}",
+                    ConsoleColor.DarkYellow);
                 return;
             }
 
@@ -704,26 +922,18 @@ namespace parkmeter_management.SimulatorCore
             {
                 Log($"[WARN] Publish failed: {ex.Message}",
                     ConsoleColor.Yellow);
-
-                // trigger reconnection
                 _state.IsConnectionLost = true;
-                _state.IsOffline = true;
                 _state.WasConnectionLost = true;
             }
         }
 
-        //----------------------------------------------------------
+        // ── Logging ───────────────────────────────────────────
 
-        // logging 
         private void Log(string message, ConsoleColor color)
-
         {
             Console.ForegroundColor = color;
             Console.WriteLine($"[{_state.SerialNumber}] {message}");
             Console.ResetColor();
         }
-    
     }
-
 }
-

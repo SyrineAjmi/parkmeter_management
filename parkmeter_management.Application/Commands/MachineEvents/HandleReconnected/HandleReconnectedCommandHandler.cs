@@ -9,64 +9,81 @@ namespace parkmeter_management.Application.Commands.MachineEvents.HandleReconnec
         : IRequestHandler<HandleReconnectedCommand, bool>
     {
         private readonly IAlertRepository _alertRepository;
-        private readonly IParkmeterRepository _parkmeterRepository;
         private readonly IMessagePublisherService _mqttPublisher;
         private readonly INotificationService _notificationService;
+        private readonly IParkmeterRepository _parkmeterRepository;
+        private readonly IInterventionOrderRepository _orderRepository;
+
 
         public HandleReconnectedCommandHandler(
             IAlertRepository alertRepository,
-            IParkmeterRepository parkmeterRepository,
             IMessagePublisherService mqttPublisher,
-            INotificationService notificationService)
+            INotificationService notificationService,
+            IParkmeterRepository parkmeterRepository,
+            IInterventionOrderRepository orderRepository) 
+
         {
-            _alertRepository     = alertRepository;
-            _parkmeterRepository = parkmeterRepository;
-            _mqttPublisher       = mqttPublisher;
+            _alertRepository = alertRepository;
+            _mqttPublisher = mqttPublisher;
             _notificationService = notificationService;
+            _parkmeterRepository = parkmeterRepository;
+            _orderRepository = orderRepository; 
+
         }
 
         public async Task<bool> Handle(
             HandleReconnectedCommand command,
             CancellationToken ct)
         {
-
             // auto-resolve CONNECTION_LOST alert
-            var alerts = await _alertRepository.GetByParkmeterAsync(command.ParkmeterId);
+            var alerts = await _alertRepository
+                .GetByParkmeterAsync(command.ParkmeterId);
+
             foreach (var a in alerts.Where(a =>
                 a.Status == AlertStatus.NOT_RESOLVED &&
                 a.Type == AlertType.CONNECTION_LOST))
             {
-                a.Status     = AlertStatus.RESOLVED;
+                a.Status = AlertStatus.RESOLVED;
                 a.ResolvedAt = DateTime.UtcNow;
                 await _alertRepository.UpdateAsync(a);
-                Console.WriteLine("Auto-resolved on reconnect: CONNECTION_LOST");
+                Console.WriteLine(
+                    "Auto-resolved on reconnect: CONNECTION_LOST");
             }
 
-            // FIX: check if the meter is still blocked by other alerts.
-            // If not, restore IN_SERVICE. Previously the status was never restored here.
-            var remaining = await _alertRepository.GetByParkmeterAsync(command.ParkmeterId);
+            // check remaining blocking alerts
+            var remaining = await _alertRepository
+                .GetByParkmeterAsync(command.ParkmeterId);
+
             var stillBlocked = remaining.Any(a =>
                 a.Status == AlertStatus.NOT_RESOLVED &&
-                (a.Type == AlertType.CASH_BOX_FULL  ||
-                 a.Type == AlertType.PAPER_EMPTY     ||
-                 a.Type == AlertType.DOOR_OPEN       ||
+                (a.Type == AlertType.CASH_BOX_FULL ||
+                 a.Type == AlertType.PAPER_EMPTY ||
+                 a.Type == AlertType.DOOR_OPEN ||
                  a.Type == AlertType.HARDWARE_FAILURE));
 
             if (!stillBlocked)
             {
-                var parkmeter = await _parkmeterRepository.GetByIdAsync(command.ParkmeterId);
+                var parkmeter = await _parkmeterRepository
+                    .GetByIdAsync(command.ParkmeterId);
+
+                // check pending hardware repair order
+                var pendingHardwareOrder = await _orderRepository
+                    .GetPendingByParkmeterAndTypeAsync(
+                        command.ParkmeterId,
+                        InterventionType.HARDWARE_REPAIR);
+
                 if (parkmeter != null &&
-                    parkmeter.Status == MeterStatus.TEMPORARILY_UNAVAILABLE)
+                    parkmeter.Status != MeterStatus.PENDING_ACTIVATION &&
+                    parkmeter.Status != MeterStatus.IN_SERVICE &&
+                    pendingHardwareOrder == null) 
                 {
-                    parkmeter.Status = MeterStatus.IN_SERVICE;
-                    await _parkmeterRepository.UpdateAsync(parkmeter);
-                    await _mqttPublisher.PublishStatusAsync(
+                    await _mqttPublisher.PublishCommandAsync(
                         command.ParkmeterId,
-                        MeterStatus.IN_SERVICE.ToString());
-                    await _notificationService.NotifyStatusChanged(
-                        command.ParkmeterId,
-                        MeterStatus.IN_SERVICE.ToString());
-                    Console.WriteLine("Reconnected — meter restored to IN_SERVICE");
+                        "SET_IN_SERVICE");
+
+                    Console.WriteLine(
+                        $"[COMMAND] SET_IN_SERVICE sent after reconnect " +
+                        $"→ {command.ParkmeterId}");
                 }
             }
 

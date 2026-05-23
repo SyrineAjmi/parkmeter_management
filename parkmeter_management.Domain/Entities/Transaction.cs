@@ -6,6 +6,8 @@ namespace parkmeter_management.Domain.Entities
     {
         public Guid Id { get; set; } = Guid.NewGuid();
         public Guid ParkmeterId { get; set; }
+        public Parkmeter? Parkmeter { get; set; }
+
         public Guid SessionId { get; set; }
         public decimal Amount { get; set; }
         public int Duration { get; set; }

@@ -106,7 +106,7 @@ namespace parkmeter_management.Api.Controllers
 
         //----------------------------------------------------------
 
-        [Authorize(Roles = "AGENT_INSTALLATION")]
+        [Authorize(Roles = "AGENT_INSTALLATION, GESTIONNAIRE_SYSTEME")]
         [HttpPut("{id}/assign-site")]
         public async Task<IActionResult> AssignToSite(
             Guid id, [FromBody] AssignSiteRequest request)
@@ -137,7 +137,8 @@ namespace parkmeter_management.Api.Controllers
                 if (parkmeter == null)
                     return NotFound("Parkmeter not found");
                 return BadRequest(
-                    "Cannot activate parkmeter without configuration.");
+                    "Commande non envoyée — " +
+                    "parcmètre injoignable ou connexion MQTT perdue.");
             }
 
             return Ok("Status updated successfully");

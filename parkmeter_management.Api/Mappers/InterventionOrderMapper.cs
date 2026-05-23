@@ -11,6 +11,7 @@ namespace parkmeter_management.Api.Mappers
             {
                 Id = order.Id,
                 ParkmeterId = order.ParkmeterId,
+                ParkmeterSerial = order.Parkmeter?.SerialNumber ?? string.Empty, 
                 OperatorId = order.OperatorId,
                 OperatorName = order.Operator?.Name
                     ?? string.Empty,

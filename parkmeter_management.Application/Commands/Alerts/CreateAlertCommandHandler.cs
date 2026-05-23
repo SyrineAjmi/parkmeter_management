@@ -8,33 +8,28 @@ using parkmeter_management.Domain.Enums;
 namespace parkmeter_management.Application.Commands.Alerts
 {
     public class CreateAlertCommandHandler
-        : IRequestHandler<CreateAlertCommand, Guid>
+            : IRequestHandler<CreateAlertCommand, Guid>
     {
         private readonly IAlertRepository _alertRepository;
         private readonly IParkmeterRepository _parkmeterRepository;
         private readonly ISessionRepository _sessionRepository;
-        private readonly IMessagePublisherService _mqttPublisher;
         private readonly INotificationService _notificationService;
-
 
         public CreateAlertCommandHandler(
             IAlertRepository alertRepository,
             IParkmeterRepository parkmeterRepository,
             ISessionRepository sessionRepository,
-            IMessagePublisherService mqttPublisher,
             INotificationService notificationService)
         {
             _alertRepository = alertRepository;
             _parkmeterRepository = parkmeterRepository;
             _sessionRepository = sessionRepository;
-            _mqttPublisher = mqttPublisher;
             _notificationService = notificationService;
         }
 
         public async Task<Guid> Handle(
             CreateAlertCommand command, CancellationToken ct)
         {
-            // get parkmeter
             var parkmeter = await _parkmeterRepository
                 .GetByIdAsync(command.ParkmeterId);
             if (parkmeter == null) return Guid.Empty;
@@ -47,7 +42,7 @@ namespace parkmeter_management.Application.Commands.Alerts
                 a.Status == AlertStatus.NOT_RESOLVED);
             if (isDuplicate) return Guid.Empty;
 
-            // IN_SERVICE operational alerts only 
+            // operational alerts only for IN_SERVICE or TEMPORARILY_UNAVAILABLE
             var operationalAlerts =
                 AlertType.CASH_BOX_WARN |
                 AlertType.CASH_BOX_FULL |
@@ -59,34 +54,25 @@ namespace parkmeter_management.Application.Commands.Alerts
                 && parkmeter.Status != MeterStatus.TEMPORARILY_UNAVAILABLE)
                 return Guid.Empty;
 
-            // blocking alerts TEMPORARILY_UNAVAILABLE
-            var blockingAlerts =
-                AlertType.CASH_BOX_FULL |
-                AlertType.PAPER_EMPTY |
+            // thses alerts — reject if PENDING / OUT_OF_SERVICE
+            var nonOperationalAlerts =
+                AlertType.HARDWARE_FAILURE |
                 AlertType.DOOR_OPEN |
-                AlertType.HARDWARE_FAILURE;
+                AlertType.CONNECTION_LOST;
 
-            if ((command.Type & blockingAlerts) != AlertType.NONE
-                && parkmeter.Status == MeterStatus.IN_SERVICE)
+            if ((command.Type & nonOperationalAlerts) != AlertType.NONE)
             {
-                parkmeter.Status = MeterStatus.TEMPORARILY_UNAVAILABLE;
-                await _parkmeterRepository.UpdateAsync(parkmeter);
-                await _mqttPublisher.PublishStatusAsync(
-                    command.ParkmeterId,
-                    MeterStatus.TEMPORARILY_UNAVAILABLE.ToString());
+                if (parkmeter.Status == MeterStatus.PENDING_ACTIVATION)
+                {
+                    Console.WriteLine(
+                        $"[ALERT] {command.Type} rejected — " +
+                        $"parkmeter status: {parkmeter.Status}");
+                    return Guid.Empty;
+                }
             }
 
-            // POWER_FAILURE  OUT_OF_SERVICE
-            if (command.Type.HasFlag(AlertType.POWER_FAILURE))
-            {
-                parkmeter.Status = MeterStatus.OUT_OF_SERVICE;
-                await _parkmeterRepository.UpdateAsync(parkmeter);
-                await _mqttPublisher.PublishStatusAsync(
-                    command.ParkmeterId,
-                    MeterStatus.OUT_OF_SERVICE.ToString());
-            }
 
-            // save alert 
+            // save alert — no status push, machine already reported it
             var alert = new Alert
             {
                 Id = Guid.NewGuid(),
@@ -101,8 +87,13 @@ namespace parkmeter_management.Application.Commands.Alerts
             await _alertRepository.AddAsync(alert);
             await _notificationService.NotifyNewAlert(
                 command.ParkmeterId,
+                parkmeter.SerialNumber,
                 command.Type.ToString(),
                 AlertPriorityHelper.GetPriority(command.Type).ToString());
+
+            Console.WriteLine(
+                $"[ALERT] {command.Type} saved " +
+                $"(Priority: {alert.Priority}) → {alert.Id}");
 
             return alert.Id;
         }

@@ -33,23 +33,32 @@ namespace parkmeter_management.Application.Commands.InterventionOrders
             CreateInterventionOrderCommand command,
             CancellationToken ct)
         {
-            // FIX: validate operator exists and has the correct role
-            var @operator = await _userRepository.GetByIdAsync(command.OperatorId);
-            if (@operator == null || @operator.Role != Role.OPERATEUR || !@operator.IsActive)
+            // validate operator
+            var @operator = await _userRepository
+                .GetByIdAsync(command.OperatorId);
+            if (@operator == null ||
+                @operator.Role != Role.OPERATEUR ||
+                !@operator.IsActive)
                 throw new InvalidOperationException(
-                    $"Operator {command.OperatorId} not found, inactive, or does not have the OPERATEUR role.");
+                    $"Operator {command.OperatorId} not found, " +
+                    $"inactive, or does not have OPERATEUR role.");
 
-            // validate parkmeter exists
-            var parkmeter = await _parkmeterRepository.GetByIdAsync(command.ParkmeterId);
+            // validate parkmeter
+            var parkmeter = await _parkmeterRepository
+                .GetByIdAsync(command.ParkmeterId);
             if (parkmeter == null)
                 throw new InvalidOperationException(
                     $"Parkmeter {command.ParkmeterId} not found.");
 
-            // deduplicate: return existing pending order if already open
-            var existing = await _orderRepository.GetPendingByParkmeterAndTypeAsync(
-                command.ParkmeterId, command.Type);
+            // deduplicate
+            var existing = await _orderRepository
+                .GetPendingByParkmeterAndTypeAsync(
+                    command.ParkmeterId, command.Type);
+
             if (existing != null)
-                return existing.Id;
+                throw new InvalidOperationException(
+                    "Un ordre d'intervention du même type " +
+                    "est déjà en attente pour ce parcmètre.");
 
             // create order
             var order = new InterventionOrder
@@ -64,18 +73,15 @@ namespace parkmeter_management.Application.Commands.InterventionOrders
 
             await _orderRepository.AddAsync(order);
 
-            // move meter to MAINTENANCE
-            parkmeter.Status = MeterStatus.MAINTENANCE;
-            await _parkmeterRepository.UpdateAsync(parkmeter);
-            await _mqttPublisher.PublishStatusAsync(
-                command.ParkmeterId,
-                MeterStatus.MAINTENANCE.ToString());
-
-            // notify the assigned operator
+            // notify operator
             await _notificationService.NotifyInterventionOrderCreated(
                 command.OperatorId,
+                parkmeter.SerialNumber,
                 command.ParkmeterId,
                 order.Id);
+
+            Console.WriteLine(
+                $"[INTERVENTION] Order created");
 
             return order.Id;
         }

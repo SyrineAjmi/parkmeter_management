@@ -32,14 +32,17 @@
         // physical levels
         public int TransactionCount { get; set; } = 0;
         public int PaperLevel { get; set; } = 100;
-        public int CashLevel { get; set; } = 0;
+        public decimal CashAmount { get; set; } = 0;
+
+        // cash thresholds in DT (demo values — fast for testing)
+        public decimal CashWarnThreshold { get; set; } = 20.000m;
+        public decimal CashFullThreshold { get; set; } = 40.000m;
 
         // alert flags (prevent duplicate alerts)
         public bool CashBoxWarnSent { get; set; } = false;
         public bool CashBoxAlertSent { get; set; } = false;
         public bool PaperAlertSent { get; set; } = false;
         public bool PaperEmptyAlertSent { get; set; } = false;
-        public bool PowerFailureAlertSent { get; set; } = false;
 
         // hardware/connect flags
         public bool HardwareFailure { get; set; } = false;
@@ -47,6 +50,8 @@
         public bool IsOffline { get; set; } = false;
         public bool IsConnectionLost { get; set; } = false;
         public bool WasConnectionLost { get; set; } = false;
+        public bool IsIntentionalDisconnect { get; set; } = false;
+
     }
 
 

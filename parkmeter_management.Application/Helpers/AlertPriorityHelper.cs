@@ -12,7 +12,6 @@ namespace parkmeter_management.Application.Helpers
             AlertType.PAPER_EMPTY => Priority.HIGH,
             AlertType.HARDWARE_FAILURE => Priority.HIGH,
             AlertType.DOOR_OPEN => Priority.NORMAL,
-            AlertType.POWER_FAILURE => Priority.HIGH,
             AlertType.CONNECTION_LOST => Priority.NORMAL,
             _ => Priority.LOW
         };

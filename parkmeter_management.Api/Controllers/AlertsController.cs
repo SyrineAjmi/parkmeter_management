@@ -55,9 +55,26 @@ namespace parkmeter_management.Api.Controllers
             if (alert.Status == AlertStatus.RESOLVED)
                 return Conflict("Alerte déjà résolue");
 
+            // physical alerts — auto-resolved by machine events only
+            var physicalAutoOnly = new[]
+            {
+                AlertType.CASH_BOX_FULL,
+                AlertType.PAPER_EMPTY,
+                AlertType.DOOR_OPEN,
+                AlertType.CONNECTION_LOST,
+                AlertType.CASH_BOX_WARN,
+                AlertType.PAPER_LOW,
+            };
+
+            if (physicalAutoOnly.Contains(alert.Type))
+                return BadRequest(
+                    "Cette alerte est résolue automatiquement " +
+                    "par l'action terrain.");
+
             var result = await _alertManager.ResolveAlert(id);
             if (!result)
-                return BadRequest("Impossible de résoudre cette alerte");
+                return BadRequest(
+                    "Impossible de résoudre cette alerte");
 
             return Ok("Alerte résolue");
         }

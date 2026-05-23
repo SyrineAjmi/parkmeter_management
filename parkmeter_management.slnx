@@ -5,5 +5,6 @@
   <Project Path="parkmeter_management.Infrastructure/parkmeter_management.Infrastructure.csproj" />
   <Project Path="parkmeter_management.ParkmeterSimulator/parkmeter_management.ParkmeterSimulator.csproj" />
   <Project Path="parkmeter_management.SimulatorCore/parkmeter_management.SimulatorCore.csproj" Id="eda7e9ba-2b63-407c-be13-7007327fb697" />
+  <Project Path="parkmeter_management.SimulatorWPF/parkmeter_management.SimulatorWPF.csproj" />
   <Project Path="parkmeter_management.Tests/parkmeter_management.Tests.csproj" Id="ceb4360b-cd35-468e-a897-5d1a1b075439" />
 </Solution>

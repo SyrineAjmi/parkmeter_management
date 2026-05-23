@@ -11,7 +11,9 @@ namespace parkmeter_management.Api.Mappers
                 Id = parkmeter.Id,
                 SerialNumber = parkmeter.SerialNumber,
                 SiteId = parkmeter.SiteId,
+                SiteName = parkmeter.Site?.Name,
                 Status = parkmeter.Status.ToString(),
+                CashAmount = parkmeter.CashAmount,
                 CreatedAt = parkmeter.CreatedAt
             };
 

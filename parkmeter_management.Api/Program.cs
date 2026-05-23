@@ -19,6 +19,15 @@ using parkmeter_management.Infrastructure.Persistence.Repositories;
 using parkmeter_management.Infrastructure.SignalR;
 using System.Text;
 
+
+// force console to flush on every write
+var stdout = new StreamWriter(Console.OpenStandardOutput())
+{
+    AutoFlush = true
+};
+Console.SetOut(stdout);
+Console.OutputEncoding = System.Text.Encoding.UTF8;
+
 var builder = WebApplication.CreateBuilder(args);
 
 // ── Controllers ───────────────────────────────
@@ -99,7 +108,7 @@ builder.Services.AddScoped<INotificationService, NotificationService>();
 builder.Services.AddMediatR(cfg =>
     cfg.RegisterServicesFromAssembly(typeof(CreateAlertCommand).Assembly));
 
-// ── MQTT ──────────────────────────────────────
+// ── MQTT ──────────────────────────────────────────────────────
 builder.Services.AddSingleton<MqttBrokerService>();
 builder.Services.AddSingleton<MqttClientService>();
 builder.Services.AddSingleton<IMessagePublisherService>(
@@ -111,7 +120,7 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowUI", policy =>
         policy
-            .WithOrigins("http://localhost:3000", "http://localhost:4200")
+            .WithOrigins("http://localhost:3000", "http://localhost:4200", "http://localhost:3001")
             .AllowAnyHeader()
             .AllowAnyMethod()
             .AllowCredentials());
@@ -120,242 +129,211 @@ builder.Services.AddCors(options =>
 // ─────────────────────────────────────────────
 var app = builder.Build();
 
+
 // ── Database init ─────────────────────────────
 using (var scope = app.Services.CreateScope())
 {
-    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    //await db.Database.EnsureDeletedAsync();  // refaire la bd 
-    await db.Database.EnsureCreatedAsync();
+    var context = scope.ServiceProvider
+        .GetRequiredService<AppDbContext>();
+    //await context.Database.EnsureDeletedAsync();
+
+    await context.Database.EnsureCreatedAsync();
     Console.WriteLine(" Database ready");
 
-    using (scope)
+    // if DB empty
+    if (!context.Users.Any())
     {
-        var context = scope.ServiceProvider
-            .GetRequiredService<AppDbContext>();
-        await context.Database.MigrateAsync();
-
-        if (!context.Users.Any())
+        // ── Users ──────────────────────────────────────
+        var agent = new User
         {
-            // ── Users ──────────────────────────────────────
-            var agent = new User
-            {
-                Id = Guid.NewGuid(),
-                Name = "Agent",
-                Email = "agent@parkmeter.tn",
-                PasswordHash = BCrypt.Net.BCrypt
-                    .HashPassword("Agent123!"),
-                Role = Role.AGENT_INSTALLATION,
-                IsActive = true,
-                CreatedAt = DateTime.UtcNow
-            };
+            Id = Guid.NewGuid(),
+            Name = "Agent",
+            Email = "agent@parkmeter.tn",
+            PasswordHash = BCrypt.Net.BCrypt.HashPassword("Agent123!"),
+            Role = Role.AGENT_INSTALLATION,
+            IsActive = true,
+            CreatedAt = DateTime.UtcNow
+        };
 
-            var superviseur = new User
-            {
-                Id = Guid.NewGuid(),
-                Name = "Superviseur",
-                Email = "sup@parkmeter.tn",
-                PasswordHash = BCrypt.Net.BCrypt
-                    .HashPassword("Sup123!"),
-                Role = Role.SUPERVISEUR,
-                IsActive = true,
-                CreatedAt = DateTime.UtcNow
-            };
+        var superviseur = new User
+        {
+            Id = Guid.NewGuid(),
+            Name = "Superviseur",
+            Email = "sup@parkmeter.tn",
+            PasswordHash = BCrypt.Net.BCrypt.HashPassword("Sup123!"),
+            Role = Role.SUPERVISEUR,
+            IsActive = true,
+            CreatedAt = DateTime.UtcNow
+        };
 
-            var gestionnaire = new User
-            {
-                Id = Guid.NewGuid(),
-                Name = "Gestionnaire",
-                Email = "gest@parkmeter.tn",
-                PasswordHash = BCrypt.Net.BCrypt
-                    .HashPassword("Gest123!"),
-                Role = Role.GESTIONNAIRE_SYSTEME,
-                IsActive = true,
-                CreatedAt = DateTime.UtcNow
-            };
+        var gestionnaire = new User
+        {
+            Id = Guid.NewGuid(),
+            Name = "Gestionnaire",
+            Email = "gest@parkmeter.tn",
+            PasswordHash = BCrypt.Net.BCrypt.HashPassword("Gest123!"),
+            Role = Role.GESTIONNAIRE_SYSTEME,
+            IsActive = true,
+            CreatedAt = DateTime.UtcNow
+        };
 
-            var financier = new User
-            {
-                Id = Guid.NewGuid(),
-                Name = "Financier",
-                Email = "fin@parkmeter.tn",
-                PasswordHash = BCrypt.Net.BCrypt
-                    .HashPassword("Fin123!"),
-                Role = Role.RESPONSABLE_FINANCIER,
-                IsActive = true,
-                CreatedAt = DateTime.UtcNow
-            };
+        var financier = new User
+        {
+            Id = Guid.NewGuid(),
+            Name = "Financier",
+            Email = "fin@parkmeter.tn",
+            PasswordHash = BCrypt.Net.BCrypt.HashPassword("Fin123!"),
+            Role = Role.RESPONSABLE_FINANCIER,
+            IsActive = true,
+            CreatedAt = DateTime.UtcNow
+        };
 
-            var operateur = new User
-            {
-                Id = Guid.NewGuid(),
-                Name = "Operateur",
-                Email = "op@parkmeter.tn",
-                PasswordHash = BCrypt.Net.BCrypt
-                    .HashPassword("Op123!"),
-                Role = Role.OPERATEUR,
-                IsActive = true,
-                CreatedAt = DateTime.UtcNow
-            };
+        var operateur = new User
+        {
+            Id = Guid.NewGuid(),
+            Name = "Operateur",
+            Email = "op@parkmeter.tn",
+            PasswordHash = BCrypt.Net.BCrypt.HashPassword("Op123!"),
+            Role = Role.OPERATEUR,
+            IsActive = true,
+            CreatedAt = DateTime.UtcNow
+        };
 
-            await context.Users.AddRangeAsync(
-                agent, superviseur, gestionnaire,
-                financier, operateur);
-            await context.SaveChangesAsync();
-            Console.WriteLine("✅ Users seeded");
+        await context.Users.AddRangeAsync(
+            agent, superviseur, gestionnaire,
+            financier, operateur);
+        await context.SaveChangesAsync();
+        Console.WriteLine("✅ Users seeded");
 
-            // ── Sites ───────────────────────────────────────
-            var site1 = new Site
-            {
-                Id = Guid.NewGuid(),
-                Name = "Centre Ville",
-                Address = "Rue de la Republique, Tunis",
-                Description = "Parking centre ville",
-                CreatedAt = DateTime.UtcNow
-            };
+        // ── Sites ───────────────────────────────────────
+        var site1 = new Site
+        {
+            Id = Guid.NewGuid(),
+            Name = "Centre Ville",
+            Address = "Rue de la Republique, Tunis",
+            Description = "Parking centre ville",
+            CreatedAt = DateTime.UtcNow
+        };
 
-            var site2 = new Site
-            {
-                Id = Guid.NewGuid(),
-                Name = "La Marsa",
-                Address = "Avenue Habib Bourguiba, La Marsa",
-                Description = "Parking bord de mer",
-                CreatedAt = DateTime.UtcNow
-            };
+        var site2 = new Site
+        {
+            Id = Guid.NewGuid(),
+            Name = "La Marsa",
+            Address = "Avenue Habib Bourguiba, La Marsa",
+            Description = "Parking bord de mer",
+            CreatedAt = DateTime.UtcNow
+        };
 
-            await context.Sites.AddRangeAsync(site1, site2);
-            await context.SaveChangesAsync();
-            Console.WriteLine("✅ Sites seeded");
+        await context.Sites.AddRangeAsync(site1, site2);
+        await context.SaveChangesAsync();
+        Console.WriteLine("✅ Sites seeded");
 
-            // ── Parkmeters ──────────────────────────────────
-            var pm1 = new Parkmeter
-            {
-                Id = Guid.NewGuid(),
-                SerialNumber = "PM001",
-                Status = MeterStatus.IN_SERVICE,
-                SiteId = site1.Id,
-                CreatedAt = DateTime.UtcNow
-            };
+        // ── Parkmeters ──────────────────────────────────
+        var pm1 = new Parkmeter
+        {
+            Id = Guid.NewGuid(),
+            SerialNumber = "PM001",
+            Status = MeterStatus.PENDING_ACTIVATION,
+            SiteId = site1.Id,
+            CreatedAt = DateTime.UtcNow
+        };
 
-            var pm2 = new Parkmeter
-            {
-                Id = Guid.NewGuid(),
-                SerialNumber = "PM002",
-                Status = MeterStatus.IN_SERVICE,
-                SiteId = site1.Id,
-                CreatedAt = DateTime.UtcNow
-            };
+        var pm2 = new Parkmeter
+        {
+            Id = Guid.NewGuid(),
+            SerialNumber = "PM002",
+            Status = MeterStatus.PENDING_ACTIVATION,
+            SiteId = site1.Id,
+            CreatedAt = DateTime.UtcNow
+        };
 
-            var pm3 = new Parkmeter
-            {
-                Id = Guid.NewGuid(),
-                SerialNumber = "PM003",
-                Status = MeterStatus.IN_SERVICE,
-                SiteId = site2.Id,
-                CreatedAt = DateTime.UtcNow
-            };
+        var pm3 = new Parkmeter
+        {
+            Id = Guid.NewGuid(),
+            SerialNumber = "PM003",
+            Status = MeterStatus.PENDING_ACTIVATION,
+            SiteId = site2.Id,
+            CreatedAt = DateTime.UtcNow
+        };
 
-            var pm4 = new Parkmeter
-            {
-                Id = Guid.NewGuid(),
-                SerialNumber = "PM004",
-                Status = MeterStatus.PENDING_ACTIVATION,
-                SiteId = site2.Id,
-                CreatedAt = DateTime.UtcNow
-            };
+        var pm4 = new Parkmeter
+        {
+            Id = Guid.NewGuid(),
+            SerialNumber = "PM004",
+            Status = MeterStatus.PENDING_ACTIVATION,
+            SiteId = site2.Id,
+            CreatedAt = DateTime.UtcNow
+        };
 
-            await context.Parkmeters.AddRangeAsync(pm1, pm2, pm3, pm4);
-            await context.SaveChangesAsync();
-            Console.WriteLine("✅ Parkmeters seeded");
+        await context.Parkmeters.AddRangeAsync(pm1, pm2, pm3, pm4);
+        await context.SaveChangesAsync();
+        Console.WriteLine("✅ Parkmeters seeded");
 
-            // ── Configurations ──────────────────────────────
-            // PM001 — flat rate
-            var config1 = new ParkMeterConfig
-            {
-                Id = Guid.NewGuid(),
-                ParkmeterId = pm1.Id,
-                MaxDuration = 120,
-                StrategyType = PricingStrategyType.FLAT_RATE,
-                PricePerHour = 1.000m,
-                CreatedAt = DateTime.UtcNow,
-                UpdatedAt = DateTime.UtcNow
-            };
+        // ── Configurations ──────────────────────────────
+        var config1 = new ParkMeterConfig
+        {
+            Id = Guid.NewGuid(),
+            ParkmeterId = pm1.Id,
+            MaxDuration = 120,
+            StrategyType = PricingStrategyType.FLAT_RATE,
+            PricePerHour = 1.000m,
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow
+        };
 
-            // PM002 — time of day (peak/off-peak)
-            var config2 = new ParkMeterConfig
-            {
-                Id = Guid.NewGuid(),
-                ParkmeterId = pm2.Id,
-                MaxDuration = 120,
-                StrategyType = PricingStrategyType.TIME_OF_DAY,
-                PeakRate = 2.500m,     // 08:00 - 18:00
-                OffPeakRate = 1.000m,  // 18:00 - 08:00
-                CreatedAt = DateTime.UtcNow,
-                UpdatedAt = DateTime.UtcNow
-            };
+        var config2 = new ParkMeterConfig
+        {
+            Id = Guid.NewGuid(),
+            ParkmeterId = pm2.Id,
+            MaxDuration = 120,
+            StrategyType = PricingStrategyType.TIME_OF_DAY,
+            PeakRate = 2.500m,
+            OffPeakRate = 1.000m,
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow
+        };
 
-            // PM003 — weekday/weekend
-            var config3 = new ParkMeterConfig
-            {
-                Id = Guid.NewGuid(),
-                ParkmeterId = pm3.Id,
-                MaxDuration = 90,
-                StrategyType = PricingStrategyType.WEEKDAY_WEEKEND,
-                WeekdayRate = 1.500m,
-                WeekendRate = 0.500m,
-                CreatedAt = DateTime.UtcNow,
-                UpdatedAt = DateTime.UtcNow
-            };
+        var config3 = new ParkMeterConfig
+        {
+            Id = Guid.NewGuid(),
+            ParkmeterId = pm3.Id,
+            MaxDuration = 90,
+            StrategyType = PricingStrategyType.WEEKDAY_WEEKEND,
+            WeekdayRate = 1.500m,
+            WeekendRate = 0.500m,
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow
+        };
 
-            // PM004 — no config yet (PENDING_ACTIVATION)
+        await context.Configurations
+            .AddRangeAsync(config1, config2, config3);
+        await context.SaveChangesAsync();
+        Console.WriteLine(" Configurations seeded");
 
-            await context.Configurations
-                .AddRangeAsync(config1, config2, config3);
-            await context.SaveChangesAsync();
-            Console.WriteLine("✅ Configurations seeded");
+        // ── Sessions ────────────────────────────────────
+        var session1 = new Session
+        {
+            Id = Guid.NewGuid(),
+            ParkmeterId = pm1.Id,
+            StartDateTime = DateTime.UtcNow,
+            Status = SessionStatus.ACTIVE,
+            TotalTransactions = 0,
+            TotalAmount = 0
+        };
+        await context.Sessions
+            .AddRangeAsync(session1);
+        await context.SaveChangesAsync();
+        Console.WriteLine(" Sessions seeded");
 
-            // ── Sessions ────────────────────────────────────
-            var session1 = new Session
-            {
-                Id = Guid.NewGuid(),
-                ParkmeterId = pm1.Id,
-                StartDateTime = DateTime.UtcNow,
-                Status = SessionStatus.ACTIVE,
-                TotalTransactions = 0,
-                TotalAmount = 0
-            };
-
-            var session2 = new Session
-            {
-                Id = Guid.NewGuid(),
-                ParkmeterId = pm2.Id,
-                StartDateTime = DateTime.UtcNow,
-                Status = SessionStatus.ACTIVE,
-                TotalTransactions = 0,
-                TotalAmount = 0
-            };
-
-            var session3 = new Session
-            {
-                Id = Guid.NewGuid(),
-                ParkmeterId = pm3.Id,
-                StartDateTime = DateTime.UtcNow,
-                Status = SessionStatus.ACTIVE,
-                TotalTransactions = 0,
-                TotalAmount = 0
-            };
-
-            await context.Sessions
-                .AddRangeAsync(session1, session2, session3);
-            await context.SaveChangesAsync();
-            Console.WriteLine("✅ Sessions seeded");
-
-            Console.WriteLine("✅ Database seeded successfully");
-        }
+        Console.WriteLine(" Database seeded successfully");
     }
-
-
-
+    else
+    {
+        Console.WriteLine(" Database already seeded — skipping");
+    }
 }
+
+
 
 // ── Middleware pipeline ───────────────────────
 if (app.Environment.IsDevelopment())
@@ -367,9 +345,11 @@ if (app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 app.UseMiddleware<GlobalExceptionMiddleware>();
 app.UseCors("AllowUI");
+app.UseRouting();
 app.UseAuthentication();
 app.UseAuthorization();
 app.UseMiddleware<ActiveUserMiddleware>();
+app.MapGet("/health", () => Results.Ok("ready"));
 app.MapControllers();
 app.MapHub<ParkMeterHub>("/hubs/parkmeter");
 

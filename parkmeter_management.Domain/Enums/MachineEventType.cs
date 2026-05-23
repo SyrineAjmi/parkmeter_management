@@ -5,10 +5,10 @@
     {
         NONE = 0,
         MACHINE_ONLINE = 1,
-        MACHINE_OFFLINE = 2,
-        MACHINE_RECONNECTED = 4,
-        CASH_COLLECTED = 8,
-        PAPER_REFILLED = 16,
-        DOOR_CLOSED = 32,
+        MACHINE_RECONNECTED = 2,
+        CASH_COLLECTED = 4,
+        PAPER_REFILLED = 8,
+        DOOR_CLOSED = 16,
+        HARDWARE_FIXED = 32
     }
 }

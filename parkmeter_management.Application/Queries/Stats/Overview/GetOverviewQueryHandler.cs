@@ -39,8 +39,6 @@ namespace parkmeter_management.Application.Queries.Stats.Overview
                     p.Status == MeterStatus.IN_SERVICE),
                 TemporarilyUnavailable: pmList.Count(p =>
                     p.Status == MeterStatus.TEMPORARILY_UNAVAILABLE),
-                Maintenance: pmList.Count(p =>
-                    p.Status == MeterStatus.MAINTENANCE),
                 OutOfService: pmList.Count(p =>
                     p.Status == MeterStatus.OUT_OF_SERVICE),
                 PendingActivation: pmList.Count(p =>

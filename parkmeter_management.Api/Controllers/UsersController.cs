@@ -104,6 +104,17 @@ namespace parkmeter_management.Api.Controllers
 
         //----------------------------------------------------------
 
+        [Authorize(Roles = "SUPERVISEUR")]
+        [HttpGet("operators")]
+        public async Task<IActionResult> GetOperators()
+        {
+            var users = await _userManager.GetAllUsers();
+            var operators = users.Where(u => u.Role == Role.OPERATEUR && u.IsActive);
+            return Ok(operators.ToDtos());
+        }
+
+        //----------------------------------------------------------
+
         [Authorize(Roles = "GESTIONNAIRE_SYSTEME")]
         [HttpPut("{id}")]
         public async Task<IActionResult> Update(

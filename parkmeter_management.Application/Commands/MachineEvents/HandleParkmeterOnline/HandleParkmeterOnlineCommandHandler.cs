@@ -8,14 +8,10 @@ namespace parkmeter_management.Application.Commands.MachineEvents.HandleParkmete
     public class HandleParkmeterOnlineCommandHandler
         : IRequestHandler<HandleParkmeterOnlineCommand, bool>
     {
-        private readonly IParkmeterRepository
-            _parkmeterRepository;
-        private readonly IParkmeterConfigurationRepository
-            _configurationRepository;
-        private readonly IMessagePublisherService
-            _mqttPublisher;
-        private readonly INotificationService
-            _notificationService;
+        private readonly IParkmeterRepository _parkmeterRepository;
+        private readonly IParkmeterConfigurationRepository _configurationRepository;
+        private readonly IMessagePublisherService _mqttPublisher;
+        private readonly INotificationService _notificationService;
 
         public HandleParkmeterOnlineCommandHandler(
             IParkmeterRepository parkmeterRepository,
@@ -45,42 +41,19 @@ namespace parkmeter_management.Application.Commands.MachineEvents.HandleParkmete
                 $"Status: {parkmeter.Status} | " +
                 $"Config: {(config != null ? "yes" : "no")}");
 
-            // push config always if exists
+            // push config — backend's responsibility
             if (config != null)
                 await _mqttPublisher.PublishConfigAsync(
-                    command.ParkmeterId,
-                    config);
+                    command.ParkmeterId, config);
 
-            // auto-activate ONLY if PENDING_ACTIVATION & config
-            if (config != null &&
-                parkmeter.Status == MeterStatus.PENDING_ACTIVATION)
-            {
-                parkmeter.Status = MeterStatus.IN_SERVICE;
-                await _parkmeterRepository.UpdateAsync(parkmeter);
+            // no status push — machine receives config,
+            // evaluates its conditions, and reports its own status
+            // via parkmeters/{id}/status topic
 
-                await _mqttPublisher.PublishStatusAsync(
-                    command.ParkmeterId,
-                    MeterStatus.IN_SERVICE.ToString());
-
-                await _notificationService.NotifyStatusChanged(
-                    command.ParkmeterId,
-                    MeterStatus.IN_SERVICE.ToString());
-
-                Console.WriteLine(
-                    $"{parkmeter.SerialNumber} " +
-                    $"auto-activated : IN_SERVICE");
-            }
-            else
-            {
-                // just push current status 
-                await _mqttPublisher.PublishStatusAsync(
-                    command.ParkmeterId,
-                    parkmeter.Status.ToString());
-
-                Console.WriteLine(
-                    $"[ONLINE] {parkmeter.SerialNumber} " +
-                    $"→ status: {parkmeter.Status}");
-            }
+            await _notificationService.NotifyParkmeterOnline(
+                command.ParkmeterId,
+                parkmeter.SerialNumber
+            );
 
             return true;
         }

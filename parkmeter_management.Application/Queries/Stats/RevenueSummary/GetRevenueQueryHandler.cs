@@ -35,8 +35,6 @@ namespace parkmeter_management.Application.Queries.Stats.RevenueSummary
                     t.Status == TransactionStatus.FAILED),
                 CancelledTransactions: list.Count(t =>
                     t.Status == TransactionStatus.CANCELLED),
-                ExpiredTransactions: list.Count(t =>
-                    t.Status == TransactionStatus.EXPIRED),
                 From: query.From,
                 To: query.To);
         }

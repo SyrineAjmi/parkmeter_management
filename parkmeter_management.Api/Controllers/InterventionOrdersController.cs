@@ -29,7 +29,7 @@ namespace parkmeter_management.Api.Controllers
             return Ok(orders.ToDtos());
         }
 
-        [Authorize(Roles = "SUPERVISEUR")]
+        [Authorize(Roles = "SUPERVISEUR,GESTIONNAIRE_SYSTEME")]
         [HttpGet("pending")]
         public async Task<IActionResult> GetPending()
         {
@@ -53,13 +53,25 @@ namespace parkmeter_management.Api.Controllers
         public async Task<IActionResult> Create(
             [FromBody] CreateInterventionOrderRequest request)
         {
-            var id = await _interventionOrderManager
-                .CreateOrder(request.ParkmeterId, request.OperatorId,request.Type);
-            return Ok(new
+            try
             {
-                Id = id,
-                Message = "interv order created"+"and operator notified"
-            });
+                var id = await _interventionOrderManager
+                    .CreateOrder(
+                        request.ParkmeterId,
+                        request.OperatorId,
+                        request.Type);
+
+                return Ok(new
+                {
+                    Id = id,
+                    Message = "Ordre d'intervention créé et opérateur notifié"
+                });
+            }
+            catch (InvalidOperationException ex)
+            {
+                // duplicate order or invalid operator/parkmeter
+                return Conflict(new { Message = ex.Message });
+            }
         }
 
         [Authorize(Roles = "OPERATEUR")]

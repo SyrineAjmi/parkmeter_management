@@ -10,6 +10,7 @@ namespace parkmeter_management.Api.Mappers
             {
                 Id = alert.Id,
                 ParkmeterId = alert.ParkmeterId,
+                ParkmeterSerial = alert.Parkmeter?.SerialNumber ?? string.Empty,
                 Type = alert.Type.ToString(),
                 Priority = alert.Priority.ToString(),
                 Status = alert.Status.ToString(),

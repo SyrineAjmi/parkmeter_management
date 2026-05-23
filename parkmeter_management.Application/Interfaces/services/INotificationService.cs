@@ -4,15 +4,21 @@
     {
         Task NotifyNewAlert(
             Guid parkmeterID,
+            string serialNumber,
             string alertType,
             string priority);
 
         Task NotifyAlertResolved(
             Guid alertId,
+            string serialNumber,
             Guid parkmeterID);
+        Task NotifyParkmeterOnline(
+            Guid parkmeterID,
+            string serialNumber);
 
         Task NotifyStatusChanged(
             Guid parkmeterID,
+            string serialNumber,
             string newStatus);
 
         Task NotifyNewTransaction(
@@ -22,18 +28,26 @@
 
         Task NotifySessionClosed(
             Guid parkmeterID,
+            string serialNumber,
             decimal totalAmount,
             int totalTransactions);
 
         Task NotifyInterventionOrderCreated(
             Guid operatorId,
+            string serialNumber,
             Guid parkmeterID,
             Guid orderId);
 
         Task NotifyInterventionOrderCompleted(
             Guid orderId,
+            string serialNumber,
             Guid parkmeterID,
             DateTime completedAt);
+
+        Task NotifyTelemetry(
+            Guid parkmeterID,
+            decimal cashAmount,
+            int transactionCount);
     }
    
     }
