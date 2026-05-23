@@ -1,0 +1,42 @@
+name: Deploy to Azure VM
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v3
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Publish API
+        run: |
+          dotnet publish parkmeter_management.Api/parkmeter_management.Api.csproj \
+            -c Release -o ./publish
+
+      - name: Copy files to Azure VM
+        uses: appleboy/scp-action@v0.1.4
+        with:
+          host: ${{ secrets.AZURE_VM_IP }}
+          username: azureuser
+          password: ${{ secrets.AZURE_VM_PASSWORD }}
+          source: "./publish/*"
+          target: "C:/parkmeter/api"
+
+      - name: Restart service
+        uses: appleboy/ssh-action@v0.1.5
+        with:
+          host: ${{ secrets.AZURE_VM_IP }}
+          username: azureuser
+          password: ${{ secrets.AZURE_VM_PASSWORD }}
+          script: |
+            net stop ParkMeterAPI
+            net start ParkMeterAPI
