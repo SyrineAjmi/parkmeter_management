@@ -42,7 +42,7 @@ jobs:
           source: "./publish/*"
           target: "C:/parkmeter/api"
 
-      - name: Create config and restart
+      - name: Create config and restart API
         uses: appleboy/ssh-action@v0.1.5
         with:
           host: ${{ secrets.AZURE_VM_IP }}
@@ -50,4 +50,4 @@ jobs:
           password: ${{ secrets.AZURE_VM_PASSWORD }}
           script: |
             powershell -Command "Set-Content -Path 'C:\parkmeter\api\publish\appsettings.Production.json' -Value '{\"ConnectionStrings\":{\"DefaultConnection\":\"Server=localhost\\\\SQLEXPRESS01;Database=parkmeter_db;Trusted_Connection=True;TrustServerCertificate=True;\"}}'"
-            Start-ScheduledTask -TaskName "ParkMeterAPI"
+            Start-Process powershell -ArgumentList "-File C:\parkmeter\start.ps1" -WindowStyle Hidden
