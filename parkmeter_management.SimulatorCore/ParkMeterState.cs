@@ -5,6 +5,8 @@
         // identity
         public Guid Id { get; set; }
         public string SerialNumber { get; set; } = string.Empty;
+        //state files saving
+        public string StateFilePrefix { get; set; } = "local";
 
         // status
         public string Status { get; set; } = "PENDING_ACTIVATION";

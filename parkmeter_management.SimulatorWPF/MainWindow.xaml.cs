@@ -13,7 +13,12 @@ namespace SimulatorWPF
     public partial class MainWindow : Window
     {
         // ── Constants ─────────────────────────────────────────
-        private const string API_URL = "https://localhost:7016";
+        
+        //------------- SWITCH FOR DEMO TYPES---------------------
+
+        private const string API_URL = "https://localhost:7016"; //local 
+        //private const string API_URL = "http://68.210.186.57:5000"; //cloud
+
 
         // ── State ─────────────────────────────────────────────
         private readonly HttpClient _http;
@@ -24,6 +29,7 @@ namespace SimulatorWPF
         private readonly Dictionary<Guid, ParkmeterCard> _cards = new();
         private CancellationTokenSource _cts = new();
         private readonly DispatcherTimer _uiTimer;
+
 
         public MainWindow()
         {
@@ -164,6 +170,7 @@ namespace SimulatorWPF
                 SerialNumber = pm.SerialNumber,
                 Status = currentStatus,
                 HasConfig = false,
+                StateFilePrefix = API_URL.Contains("localhost") ? "local" : "cloud",
                 //CashAmount = currentCash,
                 //CashBoxAlertSent = currentCash >= 40.000m,
                 //CashBoxWarnSent = currentCash >= 20.000m,

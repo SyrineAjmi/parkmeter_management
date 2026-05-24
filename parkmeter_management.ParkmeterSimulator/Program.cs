@@ -100,7 +100,11 @@ while (true)
     }
     if (key == ConsoleKey.OemPlus || key == ConsoleKey.Add)
     {
-        await PowerOnAsync(http, parkmeters, simulators, simTasks, cts);
+        var next = parkmeters.FirstOrDefault(p => !simulators.ContainsKey(p.Id));
+        if (next != null)
+            await PowerOnAsync(http, next, simulators, simTasks, cts);
+        else
+            LogWarning("All parkmeters already running!");
         runningCount = simulators.Count;
         continue;
     }

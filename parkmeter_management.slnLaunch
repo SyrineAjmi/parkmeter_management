@@ -1,6 +1,6 @@
 [
   {
-    "Name": "Nouveau profil",
+    "Name": "Local",
     "Projects": [
       {
         "Path": "parkmeter_management.Api\\parkmeter_management.Api.csproj",

@@ -242,7 +242,7 @@ namespace parkmeter_management.SimulatorCore
         {
             try
             {
-                var statePath = $"state_{state.SerialNumber}.json";
+                var statePath = $"state_{state.StateFilePrefix}_{state.SerialNumber}.json";
                 if (!File.Exists(statePath)) return;
 
                 var json = File.ReadAllText(statePath);
@@ -300,7 +300,10 @@ namespace parkmeter_management.SimulatorCore
             CancellationToken ct)
         {
             var options = new MqttClientOptionsBuilder()
-                .WithTcpServer("localhost", 1883)
+                //------------- SWITCH FOR DEMO TYPES---------------------
+
+                .WithTcpServer("localhost", 1883) //local
+                //.WithTcpServer("68.210.186.57", 1883) //cloud
                 .WithClientId($"simulator-{_state.SerialNumber}")
                 .Build();
 
@@ -333,7 +336,7 @@ namespace parkmeter_management.SimulatorCore
         {
             try
             {
-                var statePath = $"state_{_state.SerialNumber}.json";
+                var statePath = $"state_{_state.StateFilePrefix}_{_state.SerialNumber}.json";
                 var stateToSave = new
                 {
                     CashAmount = _state.CashAmount,
