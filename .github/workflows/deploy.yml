@@ -49,5 +49,5 @@ jobs:
           username: azureuser
           password: ${{ secrets.AZURE_VM_PASSWORD }}
           script: |
-            powershell -Command "Set-Content -Path 'C:\parkmeter\api\publish\appsettings.Production.json' -Value '{\"ConnectionStrings\":{\"DefaultConnection\":\"Server=localhost\\\\SQLEXPRESS01;Database=parkmeter_db;Trusted_Connection=True;TrustServerCertificate=True;\"}}'"
+            powershell -Command "Set-Content -Path 'C:\parkmeter\api\publish\appsettings.Production.json' -Value '{\"ConnectionStrings\":{\"DefaultConnection\":\"Server=localhost\\SQLEXPRESS01;Database=parkmeter_db;Trusted_Connection=True;TrustServerCertificate=True;\"}}'"
             Start-Process powershell -ArgumentList "-File C:\parkmeter\start.ps1" -WindowStyle Hidden
