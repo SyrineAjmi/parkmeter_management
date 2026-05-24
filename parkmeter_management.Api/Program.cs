@@ -122,7 +122,7 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowUI", policy =>
         policy
-            .WithOrigins("http://localhost:3000", "http://localhost:4200", "http://localhost:3001")
+            .WithOrigins("http://localhost:3000", "http://localhost:4200", "http://localhost:3001", "http://68.210.185.183:3000")
             .AllowAnyHeader()
             .AllowAnyMethod()
             .AllowCredentials());
@@ -139,7 +139,7 @@ using (var scope = app.Services.CreateScope())
         .GetRequiredService<AppDbContext>();
     //await context.Database.EnsureDeletedAsync();
 
-    await context.Database.EnsureCreatedAsync();
+    await context.Database.MigrateAsync();
     Console.WriteLine(" Database ready");
 
     // if DB empty
