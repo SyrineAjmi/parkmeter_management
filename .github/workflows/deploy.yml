@@ -13,41 +13,22 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup .NET
-        uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: '8.0.x'
-
-      - name: Publish API
-        run: |
-          dotnet publish parkmeter_management.Api/parkmeter_management.Api.csproj \
-            -c Release -o ./publish \
-            /p:TreatWarningsAsErrors=false
-
-      - name: Stop API before copy
-        uses: appleboy/ssh-action@v0.1.5
-        with:
-          host: ${{ secrets.AZURE_VM_IP }}
-          username: azureuser
-          password: ${{ secrets.AZURE_VM_PASSWORD }}
-          script: |
-            taskkill /F /IM dotnet.exe 2>nul || echo "Not running"
-
-      - name: Copy files to Azure VM
+      - name: Copy files to VM
         uses: appleboy/scp-action@v0.1.4
         with:
           host: ${{ secrets.AZURE_VM_IP }}
           username: azureuser
           password: ${{ secrets.AZURE_VM_PASSWORD }}
-          source: "./publish/*"
-          target: "C:/parkmeter/api"
+          source: "./*"
+          target: "/home/azureuser/parkmeter"
 
-      - name: Create config and restart API
+      - name: Deploy with Docker
         uses: appleboy/ssh-action@v0.1.5
         with:
           host: ${{ secrets.AZURE_VM_IP }}
           username: azureuser
           password: ${{ secrets.AZURE_VM_PASSWORD }}
           script: |
-            powershell -Command "Set-Content -Path 'C:\parkmeter\api\publish\appsettings.Production.json' -Value '{\"ConnectionStrings\":{\"DefaultConnection\":\"Server=localhost\\SQLEXPRESS01;Database=parkmeter_db;Trusted_Connection=True;TrustServerCertificate=True;\"}}'"
-            Start-Process powershell -ArgumentList "-File C:\parkmeter\start.ps1" -WindowStyle Hidden
+            cd /home/azureuser/parkmeter
+            docker-compose down
+            docker-compose up -d --build

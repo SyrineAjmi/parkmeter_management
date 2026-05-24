@@ -30,8 +30,6 @@ Console.OutputEncoding = System.Text.Encoding.UTF8;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Host.UseWindowsService();
-
 // ── Controllers ───────────────────────────────
 builder.Services.AddControllers()
     .AddJsonOptions(opts =>
@@ -122,7 +120,7 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowUI", policy =>
         policy
-            .WithOrigins("http://localhost:3000", "http://localhost:4200", "http://localhost:3001", "http://68.210.185.183:3000")
+            .WithOrigins("http://localhost:3000", "http://localhost:4200", "http://localhost:3001")
             .AllowAnyHeader()
             .AllowAnyMethod()
             .AllowCredentials());
@@ -139,8 +137,11 @@ using (var scope = app.Services.CreateScope())
         .GetRequiredService<AppDbContext>();
     //await context.Database.EnsureDeletedAsync();
 
-    await context.Database.MigrateAsync();
-    Console.WriteLine(" Database ready");
+    if (app.Environment.IsProduction())
+        await context.Database.MigrateAsync();
+    else
+        await context.Database.EnsureCreatedAsync(); 
+        Console.WriteLine(" Database ready");
 
     // if DB empty
     if (!context.Users.Any())
