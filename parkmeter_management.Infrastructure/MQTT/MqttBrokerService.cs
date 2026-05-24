@@ -1,5 +1,6 @@
 ﻿using MQTTnet;
 using MQTTnet.Server;
+using System.Net;
 
 namespace parkmeter_management.Infrastructure.Mqtt
 {
@@ -10,7 +11,8 @@ namespace parkmeter_management.Infrastructure.Mqtt
         public async Task StartAsync()
         {
             var serverOptions = new MqttServerOptionsBuilder()
-                .WithDefaultEndpoint()
+                //.WithDefaultEndpoint()
+                .WithDefaultEndpointBoundIPAddress(IPAddress.Any)
                 .WithDefaultEndpointPort(1883)
                 .Build();
 
