@@ -24,6 +24,15 @@ jobs:
             -c Release -o ./publish \
             /p:TreatWarningsAsErrors=false
 
+      - name: Stop service before copy
+        uses: appleboy/ssh-action@v0.1.5
+        with:
+          host: ${{ secrets.AZURE_VM_IP }}
+          username: azureuser
+          password: ${{ secrets.AZURE_VM_PASSWORD }}
+          script: |
+            net stop ParkMeterAPI 2>nul || echo "Service not running"
+
       - name: Copy files to Azure VM
         uses: appleboy/scp-action@v0.1.4
         with:
@@ -33,21 +42,12 @@ jobs:
           source: "./publish/*"
           target: "C:/parkmeter/api"
 
-      - name: Create production config
+      - name: Create production config and start service
         uses: appleboy/ssh-action@v0.1.5
         with:
           host: ${{ secrets.AZURE_VM_IP }}
           username: azureuser
           password: ${{ secrets.AZURE_VM_PASSWORD }}
           script: |
-            echo {"ConnectionStrings":{"DefaultConnection":"Server=localhost\\SQLEXPRESS01;Database=parkmeter_management;Trusted_Connection=True;TrustServerCertificate=True;"}} > "C:\parkmeter\api\publish\appsettings.Production.json"
-
-      - name: Restart service
-        uses: appleboy/ssh-action@v0.1.5
-        with:
-          host: ${{ secrets.AZURE_VM_IP }}
-          username: azureuser
-          password: ${{ secrets.AZURE_VM_PASSWORD }}
-          script: |
-            net stop ParkMeterAPI 2>nul || echo "Service not running"
+            powershell -Command "Set-Content -Path 'C:\parkmeter\api\publish\appsettings.Production.json' -Value '{\"ConnectionStrings\":{\"DefaultConnection\":\"Server=localhost\\\\SQLEXPRESS01;Database=parkmeter_db;Trusted_Connection=True;TrustServerCertificate=True;\"}}'"
             net start ParkMeterAPI
