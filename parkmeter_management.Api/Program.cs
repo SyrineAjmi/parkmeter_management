@@ -137,11 +137,7 @@ using (var scope = app.Services.CreateScope())
         .GetRequiredService<AppDbContext>();
     //await context.Database.EnsureDeletedAsync();
 
-    if (app.Environment.IsProduction())
-        await context.Database.MigrateAsync();
-    else
-        await context.Database.EnsureCreatedAsync(); 
-        Console.WriteLine(" Database ready");
+    await context.Database.MigrateAsync();
 
     // if DB empty
     if (!context.Users.Any())
