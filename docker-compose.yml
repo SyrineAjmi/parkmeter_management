@@ -25,5 +25,20 @@ services:
       - ASPNETCORE_URLS=http://0.0.0.0:5000
       - ConnectionStrings__DefaultConnection=Server=sqlserver;Database=parkmeter_db;User Id=sa;Password=YourPassword123!;TrustServerCertificate=True;
 
+  caddy:
+    image: caddy:latest
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - api
+
 volumes:
   sqldata:
+  caddy_data:
+  caddy_config:
