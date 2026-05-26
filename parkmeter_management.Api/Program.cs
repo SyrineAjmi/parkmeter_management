@@ -118,9 +118,10 @@ builder.Services.AddHostedService<MqttBackgroundService>();
 // ── CORS ──────────────────────────────────────
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("AllowUI", policy =>
+    options.AddPolicy("AllowAll", policy =>
         policy
-            .WithOrigins("http://localhost:3000", "http://localhost:4200", "http://localhost:3001")
+            //.WithOrigins("http://localhost:3000", "http://localhost:4200", "http://localhost:3001")
+            .AllowAnyOrigin()
             .AllowAnyHeader()
             .AllowAnyMethod()
             .AllowCredentials());
@@ -351,7 +352,7 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 app.UseMiddleware<GlobalExceptionMiddleware>();
-app.UseCors("AllowUI");
+app.UseCors("AllowAll");
 app.UseRouting();
 app.UseAuthentication();
 app.UseAuthorization();
