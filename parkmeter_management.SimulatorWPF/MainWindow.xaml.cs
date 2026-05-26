@@ -84,41 +84,107 @@ namespace SimulatorWPF
             }
         }
 
+        //private async Task LoadParkmetersAsync()
+        //{
+        //    try
+        //    {
+        //        var response = await _http.GetAsync("api/Parkmeters");
+        //        var json = await response.Content.ReadAsStringAsync();
+        //        _parkmeters = JsonSerializer.Deserialize<List<ParkMeterInfo>>(
+        //            json, _jsonOpts) ?? new();
+
+        //        // build cards on UI thread
+        //        Dispatcher.Invoke(() =>
+        //        {
+        //            CardsPanel.Children.Clear();
+        //            _cards.Clear();
+
+        //            foreach (var pm in _parkmeters)
+        //            {
+        //                var card = new ParkmeterCard(
+        //                    pm,
+        //                    async (p) => await PowerOnAsync(p), 
+        //                    TriggerAlert,
+        //                    OperatorAction); _cards[pm.Id] = card;
+        //                CardsPanel.Children.Add(card);
+        //            }
+
+        //            StatusText.Text = $"MQTT localhost:1883  |  {_parkmeters.Count} parcmètres";
+        //            AddLog("SYSTEM", $"{_parkmeters.Count} parcmètres chargés", LogType.Success);
+        //        });
+
+
+
+        //        // auto start all parkmeters OUTSIDE Dispatcher.Invoke
+
+        //        var index = 0;
+        //        foreach (var pm in _parkmeters)
+        //        {
+        //            await PowerOnAsync(pm, index);
+        //            index++;
+        //            await Task.Delay(200);
+        //        }
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        Dispatcher.Invoke(() =>
+        //        {
+        //            StatusText.Text = "Erreur de connexion API";
+        //            AddLog("SYSTEM", $"Erreur: {ex.Message}", LogType.Error);
+        //        });
+        //    }
+        //}
+
+        private async void OnRefresh(object sender, RoutedEventArgs e)
+        {
+            AddLog("SYSTEM", "Rafraîchissement...", LogType.Info);
+            await LoadParkmetersAsync();
+        }
+
         private async Task LoadParkmetersAsync()
         {
             try
             {
                 var response = await _http.GetAsync("api/Parkmeters");
                 var json = await response.Content.ReadAsStringAsync();
-                _parkmeters = JsonSerializer.Deserialize<List<ParkMeterInfo>>(
+                var freshList = JsonSerializer.Deserialize<List<ParkMeterInfo>>(
                     json, _jsonOpts) ?? new();
 
-                // build cards on UI thread
+                // only add NEW parkmeters not already in list
+                var newPms = freshList
+                    .Where(p => !_parkmeters.Any(existing => existing.Id == p.Id))
+                    .ToList();
+
+                if (newPms.Count == 0)
+                {
+                    AddLog("SYSTEM", "Aucun nouveau parcmètre", LogType.Info);
+                    return;
+                }
+
+                _parkmeters.AddRange(newPms);
+
                 Dispatcher.Invoke(() =>
                 {
-                    CardsPanel.Children.Clear();
-                    _cards.Clear();
-
-                    foreach (var pm in _parkmeters)
+                    foreach (var pm in newPms)
                     {
                         var card = new ParkmeterCard(
                             pm,
-                            async (p) => await PowerOnAsync(p), 
+                            async (p) => await PowerOnAsync(p),
                             TriggerAlert,
-                            OperatorAction); _cards[pm.Id] = card;
+                            OperatorAction);
+                        _cards[pm.Id] = card;
                         CardsPanel.Children.Add(card);
                     }
 
-                    StatusText.Text = $"MQTT localhost:1883  |  {_parkmeters.Count} parcmètres";
-                    AddLog("SYSTEM", $"{_parkmeters.Count} parcmètres chargés", LogType.Success);
+                    StatusText.Text = $"MQTT  |  {_parkmeters.Count} parcmètres";
+                    AddLog("SYSTEM",
+                        $"{newPms.Count} nouveau(x) parcmètre(s) ajouté(s)",
+                        LogType.Success);
                 });
 
-
-
-                // auto start all parkmeters OUTSIDE Dispatcher.Invoke
-
-                var index = 0;
-                foreach (var pm in _parkmeters)
+                // auto start new parkmeters
+                var index = _parkmeters.Count - newPms.Count;
+                foreach (var pm in newPms)
                 {
                     await PowerOnAsync(pm, index);
                     index++;
@@ -127,13 +193,10 @@ namespace SimulatorWPF
             }
             catch (Exception ex)
             {
-                Dispatcher.Invoke(() =>
-                {
-                    StatusText.Text = "Erreur de connexion API";
-                    AddLog("SYSTEM", $"Erreur: {ex.Message}", LogType.Error);
-                });
+                AddLog("SYSTEM", $"Erreur: {ex.Message}", LogType.Error);
             }
         }
+
 
         // ── UI Timer ──────────────────────────────────────────
 
@@ -189,7 +252,6 @@ namespace SimulatorWPF
                 $"Démarrage | Status: {currentStatus} | Cash: {currentCash:F3} DT",
                 LogType.Info);
 
-            ParkMeterSimulator.RestoreStateFromFile(state);
         }
 
 

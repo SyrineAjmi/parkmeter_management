@@ -46,6 +46,19 @@
                                    FontSize="9" 
                                    Foreground="#334155"
                                    />
+                        <Button x:Name="RefreshBtn"
+        Content="🔄 Refresh"
+        FontFamily="Consolas"
+        FontSize="10"
+        FontWeight="Bold"
+        Padding="10,5"
+        Background="#1E293B"
+        Foreground="#6366F1"
+        BorderBrush="#6366F1"
+        BorderThickness="1"
+        Cursor="Hand"
+        Margin="8,0,0,0"
+        Click="OnRefresh"/>
                     </StackPanel>
                 </StackPanel>
 
