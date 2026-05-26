@@ -137,7 +137,15 @@ using (var scope = app.Services.CreateScope())
         .GetRequiredService<AppDbContext>();
     //await context.Database.EnsureDeletedAsync();
 
-    await context.Database.MigrateAsync();
+    try
+    {
+        await context.Database.MigrateAsync();
+        Console.WriteLine("Database ready");
+    }
+    catch (Exception ex) when (ex.Message.Contains("already exists"))
+    {
+        Console.WriteLine("Database already exists — skipping creation");
+    }
 
     // if DB empty
     if (!context.Users.Any())
