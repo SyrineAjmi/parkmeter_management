@@ -72,6 +72,7 @@ namespace parkmeter_management.Application.Commands.MachineEvents.HandlePaperRef
                         pendingOrder.Id,
                         parkmeter.SerialNumber,
                         command.ParkmeterId,
+                        pendingOrder.OperatorId,    
                         pendingOrder.CompletedAt.Value);
                 }
                 Console.WriteLine("Paper refill order completed");

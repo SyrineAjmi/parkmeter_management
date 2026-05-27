@@ -78,7 +78,8 @@ namespace parkmeter_management.Application.Commands.InterventionOrders
                 command.OperatorId,
                 parkmeter.SerialNumber,
                 command.ParkmeterId,
-                order.Id);
+                order.Id,
+                order.Type.ToString());
 
             Console.WriteLine(
                 $"[INTERVENTION] Order created");

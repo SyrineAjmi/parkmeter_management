@@ -40,7 +40,7 @@ namespace parkmeter_management.Application.Commands.MachineEvents.HandleDoorClos
                 a.Status = AlertStatus.RESOLVED;
                 a.ResolvedAt = DateTime.UtcNow;
                 await _alertRepository.UpdateAsync(a);
-                await _notificationService.NotifyAlertResolved(  // ← add after UpdateAsync
+                await _notificationService.NotifyAlertResolved(  
                     a.Id,
                     parkmeter?.SerialNumber ?? string.Empty,
                     a.ParkmeterId);

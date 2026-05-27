@@ -49,6 +49,7 @@ namespace parkmeter_management.Application.Commands.MachineEvents.HandleHardware
                         pendingOrder.Id,
                         parkmeter.SerialNumber,
                         command.ParkmeterId,
+                        pendingOrder.OperatorId,   
                         pendingOrder.CompletedAt.Value);
                 }
 

@@ -36,12 +36,14 @@
             Guid operatorId,
             string serialNumber,
             Guid parkmeterID,
-            Guid orderId);
+            Guid orderId,
+            string interventionType);
 
         Task NotifyInterventionOrderCompleted(
             Guid orderId,
             string serialNumber,
             Guid parkmeterID,
+            Guid operatorId,
             DateTime completedAt);
 
         Task NotifyTelemetry(

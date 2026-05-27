@@ -13,7 +13,7 @@ namespace SimulatorWPF
     public partial class MainWindow : Window
     {
         // ── Constants ─────────────────────────────────────────
-        
+
         //------------- SWITCH FOR DEMO TYPES---------------------
 
         private const string API_URL = "https://localhost:7016"; //local 

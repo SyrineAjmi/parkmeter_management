@@ -115,6 +115,7 @@ namespace parkmeter_management.Application.Commands.MachineEvents.HandleCashRemo
                     pendingOrder.Id,
                     parkmeter.SerialNumber,
                     command.ParkmeterId,
+                    pendingOrder.OperatorId,    
                     pendingOrder.CompletedAt.Value);
                 }
 
