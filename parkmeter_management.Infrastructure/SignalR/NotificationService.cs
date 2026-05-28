@@ -1,16 +1,74 @@
 ﻿using Microsoft.AspNetCore.SignalR;
+using parkmeter_management.Application.Interfaces.Repositories;
 using parkmeter_management.Application.Interfaces.Services;
+using parkmeter_management.Domain.Entities;
+using parkmeter_management.Domain.Enums;
 
 namespace parkmeter_management.Infrastructure.SignalR
 {
     public class NotificationService : INotificationService
     {
         private readonly IHubContext<ParkMeterHub> _hubContext;
+        private readonly INotificationRepository _notifRepo;
+        private readonly IUserRepository _userRepo;
+        private static readonly Dictionary<string, string> InterventionTypeLabels = new()
+        {
+            ["CASH_COLLECTION"] = "Collecte de caisse",
+            ["PAPER_REFILL"] = "Rechargement papier",
+            ["HARDWARE_REPAIR"] = "Réparation matérielle"
+        };
+
+        private static string TranslateType(string type)
+            => InterventionTypeLabels.GetValueOrDefault(type, type);
+
+        private static readonly Dictionary<string, string> AlertTypeLabels = new()
+        {
+            ["CASH_BOX_WARN"] = "Avertissement caisse",
+            ["CASH_BOX_FULL"] = "Caisse pleine",
+            ["PAPER_LOW"] = "Papier faible",
+            ["PAPER_EMPTY"] = "Papier vide",
+            ["HARDWARE_FAILURE"] = "Panne matérielle",
+            ["DOOR_OPEN"] = "Porte ouverte",
+            ["CONNECTION_LOST"] = "Connexion perdue"
+        };
+
+        private static string TranslateAlert(string alertType)
+            => AlertTypeLabels.GetValueOrDefault(alertType, alertType);
 
         public NotificationService(
-            IHubContext<ParkMeterHub> hubContext)
+            IHubContext<ParkMeterHub> hubContext,
+             INotificationRepository notifRepo,
+             IUserRepository userRepo)
+
         {
             _hubContext = hubContext;
+            _notifRepo = notifRepo;
+            _userRepo = userRepo;
+        }
+
+        private async Task SaveToUsersAsync(
+            string[] roles,
+            string title,
+            string message,
+            string type,
+            Guid? referenceId = null)
+        {
+            var users = await _userRepo.GetAllAsync();
+            var targetUsers = users.Where(u => roles.Contains(u.Role.ToString())).ToList();
+
+            foreach (var user in targetUsers)
+            {
+                await _notifRepo.AddAsync(new Notification
+                {
+                    UserId = user.Id,
+                    Title = title,
+                    Message = message,
+                    Type = type,
+                    ReferenceId = referenceId,
+                    IsRead = false,
+                    CreatedAt = DateTime.UtcNow
+                });
+            }
         }
 
         public async Task NotifyNewAlert(
@@ -19,6 +77,13 @@ namespace parkmeter_management.Infrastructure.SignalR
             string alertType,
             string priority)
         {
+            await SaveToUsersAsync(
+                new[] { "SUPERVISEUR", "GESTIONNAIRE_SYSTEME" },
+                $"Nouvelle alerte — {serialNumber}",
+                $"Alerte {TranslateAlert(alertType)} ({priority}) détectée sur {serialNumber}",
+                "ALERT",
+                parkmeterID);
+
             await _hubContext.Clients
                 .Groups("SUPERVISEUR", "GESTIONNAIRE_SYSTEME")
                 .SendAsync(
@@ -37,6 +102,14 @@ namespace parkmeter_management.Infrastructure.SignalR
             string serialNumber,
             Guid parkmeterID)
         {
+
+            await SaveToUsersAsync(
+                new[] { "SUPERVISEUR", "GESTIONNAIRE_SYSTEME" },
+                $"Résolution d'alerte — {serialNumber}",
+                $"Alerte résolue sur {serialNumber}",
+                "ALERT",
+                parkmeterID);
+
             await _hubContext.Clients
                 .Groups("SUPERVISEUR", "GESTIONNAIRE_SYSTEME")
                 .SendAsync(
@@ -51,6 +124,13 @@ namespace parkmeter_management.Infrastructure.SignalR
 
         public async Task NotifyParkmeterOnline(Guid parkmeterID, string serialNumber)
         {
+            await SaveToUsersAsync(
+                new[] { "SUPERVISEUR", "GESTIONNAIRE_SYSTEME", "AGENT_INSTALLATION" },
+                $"Parcmètre en ligne — {serialNumber}",
+                $"Parcmètre en ligne détecté  {serialNumber}",
+                "En ligne",
+                parkmeterID);
+
             await _hubContext.Clients
                 .Groups("SUPERVISEUR", "GESTIONNAIRE_SYSTEME", "AGENT_INSTALLATION")
                 .SendAsync(
@@ -67,6 +147,13 @@ namespace parkmeter_management.Infrastructure.SignalR
             string serialNumber,
             string newStatus)
         {
+            await SaveToUsersAsync(
+                new[] { "SUPERVISEUR", "GESTIONNAIRE_SYSTEME", "AGENT_INSTALLATION" },
+                $"Changement statut — {serialNumber}",
+                $"Statut changé de {serialNumber} à {newStatus}",
+                "STATUS",
+                parkmeterID);
+
             await _hubContext.Clients
                 .Groups("SUPERVISEUR", "GESTIONNAIRE_SYSTEME", "AGENT_INSTALLATION")
                 .SendAsync(
@@ -100,6 +187,14 @@ namespace parkmeter_management.Infrastructure.SignalR
             decimal totalAmount,
             int totalTransactions)
         {
+
+            await SaveToUsersAsync(
+                new[] { "RESPONSABLE_FINANCIER", "GESTIONNAIRE_SYSTEME" },
+                $"Session cloturée — {serialNumber}",
+                $"Session avec {totalAmount} DT et {totalTransactions} transactions",
+                "SESSION",
+                parkmeterID);
+
             await _hubContext.Clients
                 .Groups("RESPONSABLE_FINANCIER", "GESTIONNAIRE_SYSTEME")
                 .SendAsync(
@@ -120,6 +215,25 @@ namespace parkmeter_management.Infrastructure.SignalR
             Guid orderId,
             string interventionType)
         {
+
+            await SaveToUsersAsync(
+                new[] { "SUPERVISEUR" },
+                $"Nouvel ordre — {serialNumber}",
+                $"Ordre {TranslateType(interventionType)} créé sur {serialNumber}",
+                "ORDRE",
+                parkmeterID);
+
+            await _notifRepo.AddAsync(new Notification
+            {
+                UserId = operatorId,
+                Title = $"Nouvel ordre assigné — {serialNumber}",
+                Message = $"Ordre {interventionType} sur {serialNumber} vous a été assigné",
+                Type = "ORDRE",
+                ReferenceId = orderId,
+                IsRead = false,
+                CreatedAt = DateTime.UtcNow
+            });
+
             await _hubContext.Clients
                 .Group("SUPERVISEUR")
                 .SendAsync(
@@ -132,6 +246,7 @@ namespace parkmeter_management.Infrastructure.SignalR
                     InterventionType = interventionType, 
                     Timestamp = DateTime.UtcNow
                 });
+
             //specific operator to get the order assigned to him 
             await _hubContext.Clients
                 .Group(operatorId.ToString())
@@ -154,6 +269,25 @@ namespace parkmeter_management.Infrastructure.SignalR
             Guid operatorId,    
             DateTime completedAt)
         {
+
+            await SaveToUsersAsync(
+                new[] { "SUPERVISEUR" },
+                $"Ordre complété — {serialNumber}",
+                $"Ordre d'intervention sur {serialNumber} complété",
+                "ORDRE",
+                parkmeterID);
+
+            await _notifRepo.AddAsync(new Notification
+            {
+                UserId = operatorId,
+                Title = $"Ordre complété — {serialNumber}",
+                Message = $"Intervention sur {serialNumber} enregistrée",
+                Type = "ORDRE",
+                ReferenceId = orderId,
+                IsRead = false,
+                CreatedAt = DateTime.UtcNow
+            });
+
             await _hubContext.Clients
                 .Group("SUPERVISEUR")
                 .SendAsync(
@@ -164,6 +298,7 @@ namespace parkmeter_management.Infrastructure.SignalR
                     ParkmeterID = parkmeterID,
                     CompletedAt = completedAt
                 });
+
             //specific op 
             await _hubContext.Clients
                 .Group(operatorId.ToString())

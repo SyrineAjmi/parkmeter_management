@@ -16,6 +16,8 @@ namespace parkmeter_management.Infrastructure.Persistence
         public DbSet<User> Users { get; set; }
         public DbSet<InterventionOrder> InterventionOrders { get; set; }
         public DbSet<MachineEvent> MachineEvents { get; set; }
+        public DbSet<Notification> Notifications => Set<Notification>();
+
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -125,6 +127,13 @@ namespace parkmeter_management.Infrastructure.Persistence
             modelBuilder.Entity<Parkmeter>()
             .Property(p => p.CashAmount)
             .HasColumnType("decimal(18,3)");
+
+            modelBuilder.Entity<Notification>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Message).IsRequired();
+                entity.Property(e => e.CreatedAt);
+            });
 
             base.OnModelCreating(modelBuilder);
             

@@ -57,7 +57,7 @@ namespace parkmeter_management.Infrastructure.Migrations
 
                     b.HasIndex("ParkmeterId");
 
-                    b.ToTable("Alerts", (string)null);
+                    b.ToTable("Alerts");
                 });
 
             modelBuilder.Entity("parkmeter_management.Domain.Entities.InterventionOrder", b =>
@@ -92,7 +92,7 @@ namespace parkmeter_management.Infrastructure.Migrations
 
                     b.HasIndex("ParkmeterId");
 
-                    b.ToTable("InterventionOrders", (string)null);
+                    b.ToTable("InterventionOrders");
                 });
 
             modelBuilder.Entity("parkmeter_management.Domain.Entities.MachineEvent", b =>
@@ -120,7 +120,42 @@ namespace parkmeter_management.Infrastructure.Migrations
 
                     b.HasIndex("ParkmeterId");
 
-                    b.ToTable("MachineEvents", (string)null);
+                    b.ToTable("MachineEvents");
+                });
+
+            modelBuilder.Entity("parkmeter_management.Domain.Entities.Notification", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsRead")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Message")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<Guid?>("ReferenceId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Notifications");
                 });
 
             modelBuilder.Entity("parkmeter_management.Domain.Entities.ParkMeterConfig", b =>
@@ -165,7 +200,7 @@ namespace parkmeter_management.Infrastructure.Migrations
                     b.HasIndex("ParkmeterId")
                         .IsUnique();
 
-                    b.ToTable("Configurations", (string)null);
+                    b.ToTable("Configurations");
                 });
 
             modelBuilder.Entity("parkmeter_management.Domain.Entities.Parkmeter", b =>
@@ -197,7 +232,7 @@ namespace parkmeter_management.Infrastructure.Migrations
 
                     b.HasIndex("SiteId");
 
-                    b.ToTable("Parkmeters", (string)null);
+                    b.ToTable("Parkmeters");
                 });
 
             modelBuilder.Entity("parkmeter_management.Domain.Entities.Session", b =>
@@ -229,7 +264,7 @@ namespace parkmeter_management.Infrastructure.Migrations
 
                     b.HasIndex("ParkmeterId");
 
-                    b.ToTable("Sessions", (string)null);
+                    b.ToTable("Sessions");
                 });
 
             modelBuilder.Entity("parkmeter_management.Domain.Entities.Site", b =>
@@ -261,7 +296,7 @@ namespace parkmeter_management.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Sites", (string)null);
+                    b.ToTable("Sites");
                 });
 
             modelBuilder.Entity("parkmeter_management.Domain.Entities.Transaction", b =>
@@ -293,7 +328,7 @@ namespace parkmeter_management.Infrastructure.Migrations
 
                     b.HasIndex("ParkmeterId");
 
-                    b.ToTable("Transactions", (string)null);
+                    b.ToTable("Transactions");
                 });
 
             modelBuilder.Entity("parkmeter_management.Domain.Entities.User", b =>
@@ -329,7 +364,7 @@ namespace parkmeter_management.Infrastructure.Migrations
                     b.HasIndex("Email")
                         .IsUnique();
 
-                    b.ToTable("Users", (string)null);
+                    b.ToTable("Users");
                 });
 
             modelBuilder.Entity("parkmeter_management.Domain.Entities.Alert", b =>

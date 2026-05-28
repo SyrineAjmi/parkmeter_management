@@ -111,6 +111,7 @@ builder.Services.AddScoped<IAuthManager, AuthManager>();
 builder.Services.AddScoped<IInterventionOrderManager, InterventionOrderManager>();
 builder.Services.AddScoped<IMachineEventRepository, MachineEventRepository>();
 builder.Services.AddScoped<IMachineEventManager, MachineEventManager>();
+builder.Services.AddScoped<INotificationRepository, NotificationRepository>();
 
 
 

@@ -1,7 +1,6 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using parkmeter_management.Application.Interfaces.Repositories;
-using parkmeter_management.Domain.Enums;
 using System.Security.Claims;
 
 namespace parkmeter_management.Api.Controllers
@@ -11,133 +10,56 @@ namespace parkmeter_management.Api.Controllers
     [Authorize]
     public class NotificationsController : ControllerBase
     {
-        private readonly IAlertRepository _alertRepository;
-        private readonly ISessionRepository _sessionRepository;
-        private readonly IInterventionOrderRepository _orderRepository;
+        private readonly INotificationRepository _notifRepo;
 
-        public NotificationsController(
-            IAlertRepository alertRepository,
-            ISessionRepository sessionRepository,
-            IInterventionOrderRepository orderRepository)
+        public NotificationsController(INotificationRepository notifRepo)
         {
-            _alertRepository = alertRepository;
-            _sessionRepository = sessionRepository;
-            _orderRepository = orderRepository;
+            _notifRepo = notifRepo;
         }
 
-
-        private static string GetAlertTypeLabel(AlertType type) => type switch
+        private Guid GetCurrentUserId()
         {
-            AlertType.CASH_BOX_FULL => "Caisse pleine",
-            AlertType.CASH_BOX_WARN => "Caisse presque pleine",
-            AlertType.PAPER_LOW => "Papier faible",
-            AlertType.PAPER_EMPTY => "Plus de papier (vide)",
-            AlertType.DOOR_OPEN => "Porte ouverte",
-            AlertType.HARDWARE_FAILURE => "Panne matérielle",
-            AlertType.CONNECTION_LOST => "Connexion perdue",
-            _ => type.ToString()
-        };
+            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value
+                ?? User.FindFirst("sub")?.Value
+                ?? User.FindFirst("id")?.Value;
+            return Guid.TryParse(userIdClaim, out var id) ? id : Guid.Empty;
+        }
 
-        private static string GetPriorityLabel(Priority priority) => priority switch
+        [HttpGet]
+        public async Task<IActionResult> GetMyNotifications()
         {
-            Priority.HIGH => "Élevée",
-            Priority.NORMAL => "Moyenne",
-            Priority.LOW => "Faible",
-            _ => priority.ToString()
-        };
+            var userId = GetCurrentUserId();
+            if (userId == Guid.Empty) return Unauthorized();
 
-        private static string GetInterventionTypeLabel(InterventionType type) => type switch
+            var notifications = await _notifRepo.GetByUserIdAsync(userId);
+            return Ok(notifications);
+        }
+
+        [HttpGet("unread-count")]
+        public async Task<IActionResult> GetUnreadCount()
         {
-            InterventionType.CASH_COLLECTION => "Collecte caisse",
-            InterventionType.PAPER_REFILL => "Recharge papier",
-            InterventionType.HARDWARE_REPAIR => "Réparation matérielle",
-            _ => type.ToString()
-        };
+            var userId = GetCurrentUserId();
+            if (userId == Guid.Empty) return Unauthorized();
 
+            var count = await _notifRepo.GetUnreadCountAsync(userId);
+            return Ok(new { count });
+        }
 
-
-        [HttpGet("history")]
-        public async Task<IActionResult> GetHistory()
+        [HttpPut("{id}/read")]
+        public async Task<IActionResult> MarkAsRead(Guid id)
         {
-            var role = User.FindFirst(ClaimTypes.Role)?.Value;
-            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            var since = DateTime.UtcNow.AddHours(-24);
-            var items = new List<object>();
+            await _notifRepo.MarkAsReadAsync(id);
+            return Ok();
+        }
 
-            if (role == "SUPERVISEUR" || role == "GESTIONNAIRE_SYSTEME")
-            {
-                var alerts = await _alertRepository.GetAllAsync();
-                foreach (var a in alerts.Where(a => a.CreatedAt >= since))
-                {
-                    items.Add(new
-                    {
-                        id = a.Id,
-                        type = a.Status == AlertStatus.RESOLVED ? "resolved" : "alert",
-                        title = a.Status == AlertStatus.RESOLVED ? "Alerte résolue" : "Nouvelle alerte",
-                        message = $"[{a.Parkmeter?.SerialNumber}] {GetAlertTypeLabel(a.Type)} — {GetPriorityLabel(a.Priority)}",
-                        timestamp = a.Status == AlertStatus.RESOLVED
-                            ? a.ResolvedAt ?? a.CreatedAt
-                            : a.CreatedAt,
-                        color = a.Status == AlertStatus.RESOLVED ? "#22c55e" : "#ef4444",
-                        read = true
-                    });
-                }
-            }
+        [HttpPut("read-all")]
+        public async Task<IActionResult> MarkAllAsRead()
+        {
+            var userId = GetCurrentUserId();
+            if (userId == Guid.Empty) return Unauthorized();
 
-            if (role == "RESPONSABLE_FINANCIER")
-            {
-                var sessions = await _sessionRepository.GetAllAsync();
-                foreach (var s in sessions.Where(s =>
-                    s.Status == SessionStatus.CLOSED &&
-                    s.EndDateTime.HasValue &&
-                    s.EndDateTime.Value >= since))
-                {
-                    items.Add(new
-                    {
-                        id = s.Id,
-                        type = "session",
-                        title = "Session clôturée",
-                        message = $"[{s.Parkmeter?.SerialNumber}] {s.TotalAmount:F3} DT — {s.TotalTransactions} tx",
-                        timestamp = s.EndDateTime,
-                        color = "#7c3aed",
-                        read = true
-                    });
-                }
-            }
-
-            if (role == "SUPERVISEUR" || role == "OPERATEUR")
-            {
-                var orders = await _orderRepository.GetAllAsync();
-
-                if (role == "OPERATEUR" && Guid.TryParse(userId, out var operatorGuid))
-                    orders = orders.Where(o => o.OperatorId == operatorGuid);
-
-                foreach (var o in orders.Where(o => o.CreatedAt >= since))
-                {
-                    items.Add(new
-                    {
-                        id = o.Id,
-                        type = o.Status == InterventionOrderStatus.COMPLETED
-                            ? "order_done" : "order",
-                        title = o.Status == InterventionOrderStatus.COMPLETED
-                            ? "Intervention terminée" : "Nouvel ordre d'intervention",
-                        message = $"[{o.Parkmeter?.SerialNumber}] {GetInterventionTypeLabel(o.Type)}",
-                        timestamp = o.Status == InterventionOrderStatus.COMPLETED
-                            ? o.CompletedAt ?? o.CreatedAt
-                            : o.CreatedAt,
-                        color = o.Status == InterventionOrderStatus.COMPLETED
-                            ? "#22c55e" : "#f59e0b",
-                        read = false
-                    });
-                }
-            }
-
-            var result = items
-                .OrderByDescending(i => (DateTime)((dynamic)i).timestamp)
-                .Take(50)
-                .ToList();
-
-            return Ok(result);
+            await _notifRepo.MarkAllAsReadAsync(userId);
+            return Ok();
         }
     }
 }
