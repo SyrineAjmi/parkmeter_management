@@ -57,7 +57,7 @@ namespace parkmeter_management.Infrastructure.Migrations
 
                     b.HasIndex("ParkmeterId");
 
-                    b.ToTable("Alerts");
+                    b.ToTable("Alerts", (string)null);
                 });
 
             modelBuilder.Entity("parkmeter_management.Domain.Entities.InterventionOrder", b =>
@@ -92,7 +92,7 @@ namespace parkmeter_management.Infrastructure.Migrations
 
                     b.HasIndex("ParkmeterId");
 
-                    b.ToTable("InterventionOrders");
+                    b.ToTable("InterventionOrders", (string)null);
                 });
 
             modelBuilder.Entity("parkmeter_management.Domain.Entities.MachineEvent", b =>
@@ -120,7 +120,7 @@ namespace parkmeter_management.Infrastructure.Migrations
 
                     b.HasIndex("ParkmeterId");
 
-                    b.ToTable("MachineEvents");
+                    b.ToTable("MachineEvents", (string)null);
                 });
 
             modelBuilder.Entity("parkmeter_management.Domain.Entities.ParkMeterConfig", b =>
@@ -165,7 +165,7 @@ namespace parkmeter_management.Infrastructure.Migrations
                     b.HasIndex("ParkmeterId")
                         .IsUnique();
 
-                    b.ToTable("Configurations");
+                    b.ToTable("Configurations", (string)null);
                 });
 
             modelBuilder.Entity("parkmeter_management.Domain.Entities.Parkmeter", b =>
@@ -197,7 +197,7 @@ namespace parkmeter_management.Infrastructure.Migrations
 
                     b.HasIndex("SiteId");
 
-                    b.ToTable("Parkmeters");
+                    b.ToTable("Parkmeters", (string)null);
                 });
 
             modelBuilder.Entity("parkmeter_management.Domain.Entities.Session", b =>
@@ -229,7 +229,7 @@ namespace parkmeter_management.Infrastructure.Migrations
 
                     b.HasIndex("ParkmeterId");
 
-                    b.ToTable("Sessions");
+                    b.ToTable("Sessions", (string)null);
                 });
 
             modelBuilder.Entity("parkmeter_management.Domain.Entities.Site", b =>
@@ -249,13 +249,19 @@ namespace parkmeter_management.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<double>("Latitude")
+                        .HasColumnType("float");
+
+                    b.Property<double>("Longitude")
+                        .HasColumnType("float");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
                     b.HasKey("Id");
 
-                    b.ToTable("Sites");
+                    b.ToTable("Sites", (string)null);
                 });
 
             modelBuilder.Entity("parkmeter_management.Domain.Entities.Transaction", b =>
@@ -287,7 +293,7 @@ namespace parkmeter_management.Infrastructure.Migrations
 
                     b.HasIndex("ParkmeterId");
 
-                    b.ToTable("Transactions");
+                    b.ToTable("Transactions", (string)null);
                 });
 
             modelBuilder.Entity("parkmeter_management.Domain.Entities.User", b =>
@@ -323,7 +329,7 @@ namespace parkmeter_management.Infrastructure.Migrations
                     b.HasIndex("Email")
                         .IsUnique();
 
-                    b.ToTable("Users");
+                    b.ToTable("Users", (string)null);
                 });
 
             modelBuilder.Entity("parkmeter_management.Domain.Entities.Alert", b =>

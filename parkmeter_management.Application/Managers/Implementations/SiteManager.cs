@@ -19,26 +19,27 @@ namespace parkmeter_management.Application.Managers.Implementations
         }
 
         public async Task<Guid> CreateSite(string name, string address,
-            string description)
+            string description, double Latitude, double Longitude)
             => await _mediator.Send(new CreateSiteCommand
             {
                 Name = name,
                 Address = address,
                 Description = description,
+                Latitude = Latitude,
+                Longitude = Longitude
             });
 
         public async Task<bool> UpdateSite(Guid id, string name,
-            string address, string description)
-        {
-            var site = await _siteRepository.GetByIdAsync(id);
-            if (site == null) return false;
-
-            site.Name = name;
-            site.Address = address;
-            site.Description = description;
-            await _siteRepository.UpdateAsync(site);
-            return true;
-        }
+            string address, string description, double latitude, double longitude)
+            => await _mediator.Send(new UpdateSiteCommand
+            {
+                Id = id,
+                Name = name,
+                Address = address,
+                Description = description,
+                Latitude = latitude,
+                Longitude = longitude,
+            });
 
         public async Task<bool> DeleteSite(Guid id)
         {

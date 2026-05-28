@@ -141,7 +141,7 @@ namespace parkmeter_management.Infrastructure.SignalR
                     OperatorId = operatorId, 
                     SerialNumber = serialNumber, 
                     ParkmeterID = parkmeterID, 
-                    OrderId = orderId,
+                    OrderId = orderId, 
                     InterventionType = interventionType,
                     Timestamp = DateTime.UtcNow 
                 });

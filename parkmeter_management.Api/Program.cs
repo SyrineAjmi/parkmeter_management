@@ -113,6 +113,7 @@ builder.Services.AddScoped<IMachineEventRepository, MachineEventRepository>();
 builder.Services.AddScoped<IMachineEventManager, MachineEventManager>();
 
 
+
 // ── Services ──────────────────────────────────
 builder.Services.AddScoped<IJwtService, JwtService>();
 builder.Services.AddScoped<IPasswordHasher, PasswordHasher>();
@@ -234,6 +235,8 @@ using (var scope = app.Services.CreateScope())
             Name = "Centre Ville",
             Address = "Rue de la Republique, Tunis",
             Description = "Parking centre ville",
+            Latitude = 36.8190,   
+            Longitude = 10.1658,  
             CreatedAt = DateTime.UtcNow
         };
 
@@ -243,6 +246,8 @@ using (var scope = app.Services.CreateScope())
             Name = "La Marsa",
             Address = "Avenue Habib Bourguiba, La Marsa",
             Description = "Parking bord de mer",
+            Latitude = 36.8781,
+            Longitude = 10.3247,
             CreatedAt = DateTime.UtcNow
         };
 

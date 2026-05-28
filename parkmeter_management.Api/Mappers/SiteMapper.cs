@@ -12,6 +12,8 @@ namespace parkmeter_management.Api.Mappers
                 Name = site.Name,
                 Address = site.Address,
                 Description = site.Description,
+                Latitude = site.Latitude,   
+                Longitude = site.Longitude, 
                 CreatedAt = site.CreatedAt
             };
 

@@ -23,6 +23,8 @@ namespace parkmeter_management.Application.Commands.Sites
                 Name = command.Name,
                 Address = command.Address,
                 Description = command.Description,
+                Latitude = command.Latitude,
+                Longitude = command.Longitude,
                 CreatedAt = DateTime.UtcNow,
             };
 

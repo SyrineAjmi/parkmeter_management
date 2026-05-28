@@ -49,7 +49,10 @@ namespace parkmeter_management.Api.Controllers
             var id = await _siteManager.CreateSite(
                 request.Name,
                 request.Address,
-                request.Description);
+                request.Description,
+                request.Latitude,
+                request.Longitude);
+
             return Ok(new { Id = id, Message = "Site created successfully" });
         }
 
@@ -61,7 +64,11 @@ namespace parkmeter_management.Api.Controllers
             Guid id, [FromBody] UpdateSiteRequest request)
         {
             var result = await _siteManager.UpdateSite(
-                id, request.Name, request.Address, request.Description);
+                id, request.Name, 
+                request.Address, 
+                request.Description, 
+                request.Latitude, 
+                request.Longitude);
             if (!result) return NotFound();
             return Ok("Site updated successfully");
         }
