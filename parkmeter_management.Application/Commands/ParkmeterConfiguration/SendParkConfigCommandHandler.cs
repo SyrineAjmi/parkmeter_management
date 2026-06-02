@@ -2,6 +2,7 @@
 using parkmeter_management.Application.Interfaces.Repositories;
 using parkmeter_management.Application.Interfaces.Services;
 using parkmeter_management.Domain.Entities;
+using parkmeter_management.Domain.Enums;
 
 namespace parkmeter_management.Application.Commands.ParkmeterConfiguration
 {
@@ -24,19 +25,18 @@ namespace parkmeter_management.Application.Commands.ParkmeterConfiguration
         {
             // save config to DB
             var config = new ParkMeterConfig
-            {
-                Id = Guid.NewGuid(),
-                ParkmeterId = command.ParkmeterId,
-                MaxDuration = command.MaxDuration,
-                StrategyType = command.StrategyType,
-                PricePerHour = command.PricePerHour,
-                PeakRate = command.PeakRate,
-                OffPeakRate = command.OffPeakRate,
-                WeekdayRate = command.WeekdayRate,
-                WeekendRate = command.WeekendRate,
-                CreatedAt = DateTime.UtcNow,
-                UpdatedAt = DateTime.UtcNow
-            };
+            (
+                command.ParkmeterId,
+                command.MaxDuration,
+                command.StrategyType,
+                command.PricePerHour,
+                command.PeakRate,
+                command.OffPeakRate,
+                command.WeekdayRate,
+                command.WeekendRate
+            );
+
+
 
             await _configurationRepository.SaveAsync(config);
 

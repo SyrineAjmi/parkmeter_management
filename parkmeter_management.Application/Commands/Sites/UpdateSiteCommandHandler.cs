@@ -19,11 +19,8 @@ namespace parkmeter_management.Application.Commands.Sites
             var site = await _siteRepository.GetByIdAsync(command.Id);
             if (site == null) return false;
 
-            site.Name = command.Name;
-            site.Address = command.Address;
-            site.Description = command.Description;
-            site.Latitude = command.Latitude;
-            site.Longitude = command.Longitude;
+            site.Update(command.Name, command.Address, command.Description, command.Latitude, command.Longitude);
+
 
             await _siteRepository.UpdateAsync(site);
             return true;

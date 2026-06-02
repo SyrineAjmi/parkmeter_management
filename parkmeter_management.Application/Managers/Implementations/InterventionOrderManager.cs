@@ -6,9 +6,7 @@ using parkmeter_management.Domain.Entities;
 using parkmeter_management.Domain.Enums;
 
 namespace parkmeter_management.Application.Managers.Implementations
-{
-    // FIX: business logic moved to CreateInterventionOrderCommandHandler.
-    // Manager is now a thin CQRS dispatcher, consistent with all other managers.
+{    
     public class InterventionOrderManager : IInterventionOrderManager
     {
         private readonly IMediator _mediator;

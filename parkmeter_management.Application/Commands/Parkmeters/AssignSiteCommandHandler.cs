@@ -21,7 +21,7 @@ namespace parkmeter_management.Application.Commands.Parkmeters
                 .GetByIdAsync(command.ParkmeterId);
             if (parkmeter == null) return false;
 
-            parkmeter.SiteId = command.SiteId;
+            parkmeter.UpdateSite(command.SiteId);
             await _parkmeterRepository.UpdateAsync(parkmeter);
             return true;
         }

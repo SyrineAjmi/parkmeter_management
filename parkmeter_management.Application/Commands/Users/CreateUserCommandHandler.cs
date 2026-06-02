@@ -2,6 +2,7 @@
 using parkmeter_management.Application.Interfaces.Repositories;
 using parkmeter_management.Application.Interfaces.Services;
 using parkmeter_management.Domain.Entities;
+using parkmeter_management.Domain.Enums;
 
 namespace parkmeter_management.Application.Commands.Users
 {
@@ -11,7 +12,7 @@ namespace parkmeter_management.Application.Commands.Users
         private readonly IUserRepository _userRepository;
         private readonly IPasswordHasher _passwordHasher;
 
-        public CreateUserCommandHandler(IUserRepository userRepository,IPasswordHasher passwordHasher)
+        public CreateUserCommandHandler(IUserRepository userRepository, IPasswordHasher passwordHasher)
         {
             _userRepository = userRepository;
             _passwordHasher = passwordHasher;
@@ -29,17 +30,13 @@ namespace parkmeter_management.Application.Commands.Users
 
             var passwordHash = _passwordHasher.Hash(command.Password);
 
-
             var user = new User
-            {
-                Id = Guid.NewGuid(),
-                Name = command.Name,
-                Email = command.Email,
-                PasswordHash = passwordHash,
-                Role = command.Role,
-                IsActive = true,
-                CreatedAt = DateTime.UtcNow
-            };
+            (
+                command.Name,
+                command.Email,
+                passwordHash,
+                command.Role
+            );
 
             await _userRepository.AddAsync(user);
             return user.Id;

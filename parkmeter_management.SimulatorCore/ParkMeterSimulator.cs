@@ -23,7 +23,7 @@ namespace parkmeter_management.SimulatorCore
             _state = state;
         }
 
-        // ── Public properties ─────────────────────────────────
+        // public properties 
 
         public bool HasConfig => _state.HasConfig;
         public string Status => _state.Status;
@@ -41,18 +41,18 @@ namespace parkmeter_management.SimulatorCore
         public string StrategyType => _state.StrategyType;
         public int TransactionCount => _state.TransactionCount;
 
-        // ── Lifecycle ─────────────────────────────────────────
+        //  lifecycle 
 
         public async Task RunAsync(CancellationToken ct = default)
         {
-            _client = new MqttFactory().CreateMqttClient(); // ← create ONCE
-            RegisterMessageListener(ct); // ← register ONCE
+            _client = new MqttFactory().CreateMqttClient(); 
+            RegisterMessageListener(ct); 
 
             while (!ct.IsCancellationRequested)
             {
                 if (!await ConnectWithRetryAsync(ct)) return;
 
-                // subscribe every reconnect
+                // subscribe each reconnect
                 await _client.SubscribeAsync(
                     $"parkmeters/{_state.Id}/config",
                     cancellationToken: ct);
@@ -92,7 +92,7 @@ namespace parkmeter_management.SimulatorCore
             }
         }
 
-        // ── Stop ──────────────────────────────────────────────
+        // stop
 
         public async Task StopAsync()
         {
@@ -104,7 +104,7 @@ namespace parkmeter_management.SimulatorCore
             }
         }
 
-        // ── Test mode ─────────────────────────────────────────
+        //  test mode 
 
         public async Task TriggerAlertAsync(AlertType alertType)
         {
@@ -124,7 +124,7 @@ namespace parkmeter_management.SimulatorCore
             await PublishTelemetryAsync();
         }
 
-        // ── Agent actions ─────────────────────────────────────
+        // agent actions 
 
         public async Task EmptyCashBoxAsync()
         {
@@ -294,13 +294,13 @@ namespace parkmeter_management.SimulatorCore
                 && !_state.DoorOpen;
         }
 
-        // ── Connection ────────────────────────────────────────
+        //  Connection 
 
         private async Task<bool> ConnectWithRetryAsync(
             CancellationToken ct)
         {
             var options = new MqttClientOptionsBuilder()
-                //------------- SWITCH FOR DEMO TYPES ---------------------
+                //------------- SWITCH FOR DEMO  ---------------------
 
                 .WithTcpServer("localhost", 1883) //local
                 //.WithTcpServer("68.210.186.57", 1883) //cloud
@@ -382,7 +382,6 @@ namespace parkmeter_management.SimulatorCore
                         ApplyConfig(payload);
                     else if (topic.EndsWith("/command"))
                         ApplyCommand(payload);
-                    // ↑ NEW — machine receives management commands
                 }
                 catch (Exception ex)
                 {
@@ -394,10 +393,12 @@ namespace parkmeter_management.SimulatorCore
             };
         }
 
-        // ── Config reception ──────────────────────────────────
+        // config reception 
 
         private void ApplyConfig(string payload)
         {
+            Console.WriteLine($"[CONFIG] {_state.SerialNumber} received config");
+
             var raw = JsonSerializer.Deserialize<JsonElement>(
                 payload,
                 new JsonSerializerOptions
@@ -446,9 +447,13 @@ namespace parkmeter_management.SimulatorCore
 
             if (_state.Status == "PENDING_ACTIVATION")
             {
+                Console.WriteLine($"[CONFIG] HasConfig={_state.HasConfig}, CanBeInService={CanBeInService()}");
+
                 if (CanBeInService())
                 {
                     _state.Status = "IN_SERVICE";
+                    Console.WriteLine($"[CONFIG] → Publishing IN_SERVICE");
+
                     _ = PublishStatusAsync("IN_SERVICE");
                     Log("Config applied → EN_SERVICE", ConsoleColor.Green);
                 }
@@ -456,7 +461,7 @@ namespace parkmeter_management.SimulatorCore
         }
 
 
-        // ── Command reception (management decisions) ──────────
+        // command reception (management decisions)
 
         private void ApplyCommand(string payload)
         {
@@ -507,7 +512,7 @@ namespace parkmeter_management.SimulatorCore
             }
         }
 
-        // ── Simulation loop ───────────────────────────────────
+        // simulation loop 
 
         private async Task RunSimulationLoopAsync(CancellationToken ct)
         {
@@ -609,7 +614,7 @@ namespace parkmeter_management.SimulatorCore
             }
         }
 
-        // ── Transactions ──────────────────────────────────────
+        // transactions 
 
         private async Task<(decimal amount, int duration,
             TransactionStatus status)> SendTransactionAsync()
@@ -709,7 +714,7 @@ namespace parkmeter_management.SimulatorCore
             };
         }
 
-        // ── Alert checking ────────────────────────────────────
+        // alert checking 
 
         private async Task CheckAndSendAlertsAsync()
         {
@@ -843,7 +848,7 @@ namespace parkmeter_management.SimulatorCore
 
         }
 
-        // ── MQTT helpers ──────────────────────────────────────
+        //  MQTT helpers 
 
         private async Task PublishEventAsync(
             MachineEventType eventType)
@@ -861,7 +866,7 @@ namespace parkmeter_management.SimulatorCore
 
         private async Task PublishStatusAsync(string status)
         {
-            // machine reports its own status to backend
+            // machine reports its own status
             await PublishAsync(
                 $"parkmeters/{_state.Id}/status",
                 new
@@ -930,7 +935,7 @@ namespace parkmeter_management.SimulatorCore
             }
         }
 
-        // ── Logging ───────────────────────────────────────────
+        // logs
 
         private void Log(string message, ConsoleColor color)
         {

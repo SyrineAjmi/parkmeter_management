@@ -16,18 +16,17 @@ namespace parkmeter_management.Infrastructure.Mqtt
         private IMqttClient? _client;
         private readonly IServiceProvider _serviceProvider;
 
-        // ── Queue ─────────────────────────────────────────────
+        //  queue pour le traitement des messages
         private readonly Channel<(string topic, string payload)> _queue
             = Channel.CreateUnbounded<(string, string)>();
 
         public MqttClientService(IServiceProvider serviceProvider)
         {
             _serviceProvider = serviceProvider;
-            // start background consumer
             _ = Task.Run(ProcessQueueAsync);
         }
 
-        // ── Lifecycle ─────────────────────────────────────────
+        //  lifcycle 
 
         public async Task StartAsync(CancellationToken ct = default)
         {
@@ -43,7 +42,7 @@ namespace parkmeter_management.Infrastructure.Mqtt
 
             await _client.ConnectAsync(options, ct);
 
-            // machine - backend topics
+            //  topics
             await _client.SubscribeAsync("parkmeters/+/events");
             await _client.SubscribeAsync("parkmeters/+/alerts");
             await _client.SubscribeAsync("parkmeters/+/transactions");
@@ -62,7 +61,7 @@ namespace parkmeter_management.Infrastructure.Mqtt
             Console.WriteLine("[MQTT] Client disconnected");
         }
 
-        // ── Inbound — map and route to MediatR ───────────────
+        // routing for mediatR
 
         private Task OnMessageReceivedAsync(
         MqttApplicationMessageReceivedEventArgs e)
@@ -75,6 +74,7 @@ namespace parkmeter_management.Infrastructure.Mqtt
 
             return Task.CompletedTask; 
         }
+
 
         private async Task ProcessQueueAsync()
         {
@@ -249,7 +249,7 @@ namespace parkmeter_management.Infrastructure.Mqtt
             return true;
         }
 
-        // ── Shared publish helper ─────────────────────────────
+        // publish helper
 
         private async Task PublishAsync(
             string topic, object payload, bool retain = false)

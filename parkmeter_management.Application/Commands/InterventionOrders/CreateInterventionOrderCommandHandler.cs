@@ -61,15 +61,7 @@ namespace parkmeter_management.Application.Commands.InterventionOrders
                     "est déjà en attente pour ce parcmètre.");
 
             // create order
-            var order = new InterventionOrder
-            {
-                Id = Guid.NewGuid(),
-                ParkmeterId = command.ParkmeterId,
-                OperatorId = command.OperatorId,
-                Type = command.Type,
-                Status = InterventionOrderStatus.PENDING,
-                CreatedAt = DateTime.UtcNow
-            };
+            var order = new InterventionOrder(command.ParkmeterId, command.OperatorId, command.Type);
 
             await _orderRepository.AddAsync(order);
 

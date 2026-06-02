@@ -73,16 +73,8 @@ namespace parkmeter_management.Application.Commands.Alerts
 
 
             // save alert — no status push, machine already reported it
-            var alert = new Alert
-            {
-                Id = Guid.NewGuid(),
-                ParkmeterId = command.ParkmeterId,
-                Type = command.Type,
-                Priority = AlertPriorityHelper.GetPriority(command.Type),
-                Description = command.Description,
-                Status = AlertStatus.NOT_RESOLVED,
-                CreatedAt = DateTime.UtcNow
-            };
+            var alert = new Alert(command.ParkmeterId, command.Type, command.Description, AlertPriorityHelper.GetPriority(command.Type));
+
 
             await _alertRepository.AddAsync(alert);
             await _notificationService.NotifyNewAlert(

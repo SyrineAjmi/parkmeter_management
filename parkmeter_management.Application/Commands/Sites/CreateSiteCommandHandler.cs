@@ -1,6 +1,8 @@
 ﻿using MediatR;
 using parkmeter_management.Application.Interfaces.Repositories;
 using parkmeter_management.Domain.Entities;
+using System.Net;
+using System.Xml.Linq;
 
 namespace parkmeter_management.Application.Commands.Sites
 {
@@ -18,15 +20,13 @@ namespace parkmeter_management.Application.Commands.Sites
             CreateSiteCommand command, CancellationToken ct)
         {
             var site = new Site
-            {
-                Id = Guid.NewGuid(),
-                Name = command.Name,
-                Address = command.Address,
-                Description = command.Description,
-                Latitude = command.Latitude,
-                Longitude = command.Longitude,
-                CreatedAt = DateTime.UtcNow,
-            };
+            (                
+                command.Name,
+                command.Address,
+                command.Description,
+                command.Latitude,
+                command.Longitude
+            );
 
             await _siteRepository.AddAsync(site);
             return site.Id;

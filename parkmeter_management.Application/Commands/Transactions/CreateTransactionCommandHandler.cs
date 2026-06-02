@@ -45,29 +45,18 @@ namespace parkmeter_management.Application.Commands.Transactions
 
             if (activeSession == null)
             {
-                activeSession = new Session
-                {
-                    Id = Guid.NewGuid(),
-                    ParkmeterId = command.ParkmeterId,
-                    StartDateTime = DateTime.UtcNow,
-                    Status = SessionStatus.ACTIVE,
-                    TotalTransactions = 0,
-                    TotalAmount = 0
-                };
+                activeSession = new Session(command.ParkmeterId);
+
                 await _sessionRepository.AddAsync(activeSession);
             }
 
             // save transact
-            var transaction = new Transaction
-            {
-                Id = Guid.NewGuid(),
-                ParkmeterId = command.ParkmeterId,
-                SessionId = activeSession.Id,
-                Amount = command.Amount,
-                Duration = command.Duration,
-                Status = command.Status,
-                CreatedAt = DateTime.UtcNow
-            };
+            var transaction = new Transaction(
+                command.ParkmeterId,
+                activeSession.Id,
+                command.Amount,
+                command.Duration,
+                command.Status);
 
             await _transactionRepository.AddAsync(transaction);
             await _notificationService.NotifyNewTransaction(
@@ -78,8 +67,7 @@ namespace parkmeter_management.Application.Commands.Transactions
             // update session totals : COMPLETED only
             if (command.Status == TransactionStatus.COMPLETED)
             {
-                activeSession.TotalTransactions++;
-                activeSession.TotalAmount += command.Amount;
+                activeSession.AddTransaction(command.Amount);
                 await _sessionRepository.UpdateAsync(activeSession);
             }
 

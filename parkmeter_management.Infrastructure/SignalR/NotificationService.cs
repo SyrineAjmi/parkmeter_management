@@ -59,15 +59,13 @@ namespace parkmeter_management.Infrastructure.SignalR
             foreach (var user in targetUsers)
             {
                 await _notifRepo.AddAsync(new Notification
-                {
-                    UserId = user.Id,
-                    Title = title,
-                    Message = message,
-                    Type = type,
-                    ReferenceId = referenceId,
-                    IsRead = false,
-                    CreatedAt = DateTime.UtcNow
-                });
+                (
+                    user.Id,
+                    title,
+                    message,
+                    type,
+                    referenceId
+                ));
             }
         }
 
@@ -124,12 +122,12 @@ namespace parkmeter_management.Infrastructure.SignalR
 
         public async Task NotifyParkmeterOnline(Guid parkmeterID, string serialNumber)
         {
-            await SaveToUsersAsync(
-                new[] { "SUPERVISEUR", "GESTIONNAIRE_SYSTEME", "AGENT_INSTALLATION" },
-                $"Parcmètre en ligne — {serialNumber}",
-                $"Parcmètre en ligne détecté  {serialNumber}",
-                "En ligne",
-                parkmeterID);
+            //await SaveToUsersAsync(
+            //    new[] { "SUPERVISEUR", "GESTIONNAIRE_SYSTEME", "AGENT_INSTALLATION" },
+            //    $"Parcmètre en ligne — {serialNumber}",
+            //    $"Parcmètre en ligne détecté  {serialNumber}",
+            //    "En ligne",
+            //    parkmeterID);
 
             await _hubContext.Clients
                 .Groups("SUPERVISEUR", "GESTIONNAIRE_SYSTEME", "AGENT_INSTALLATION")
@@ -147,12 +145,12 @@ namespace parkmeter_management.Infrastructure.SignalR
             string serialNumber,
             string newStatus)
         {
-            await SaveToUsersAsync(
-                new[] { "SUPERVISEUR", "GESTIONNAIRE_SYSTEME", "AGENT_INSTALLATION" },
-                $"Changement statut — {serialNumber}",
-                $"Statut changé de {serialNumber} à {newStatus}",
-                "STATUS",
-                parkmeterID);
+            //await SaveToUsersAsync(
+            //    new[] { "SUPERVISEUR", "GESTIONNAIRE_SYSTEME", "AGENT_INSTALLATION" },
+            //    $"Changement statut — {serialNumber}",
+            //    $"Statut changé de {serialNumber} à {newStatus}",
+            //    "STATUS",
+            //    parkmeterID);
 
             await _hubContext.Clients
                 .Groups("SUPERVISEUR", "GESTIONNAIRE_SYSTEME", "AGENT_INSTALLATION")
@@ -223,16 +221,13 @@ namespace parkmeter_management.Infrastructure.SignalR
                 "ORDRE",
                 parkmeterID);
 
-            await _notifRepo.AddAsync(new Notification
-            {
-                UserId = operatorId,
-                Title = $"Nouvel ordre assigné — {serialNumber}",
-                Message = $"Ordre {interventionType} sur {serialNumber} vous a été assigné",
-                Type = "ORDRE",
-                ReferenceId = orderId,
-                IsRead = false,
-                CreatedAt = DateTime.UtcNow
-            });
+            await _notifRepo.AddAsync(new Notification(
+                operatorId,
+                $"Nouvel ordre assigné — {serialNumber}",
+                $"Ordre {TranslateType(interventionType)} sur {serialNumber} vous a été assigné",
+                "ORDRE",
+                orderId
+            ));
 
             await _hubContext.Clients
                 .Group("SUPERVISEUR")
@@ -277,16 +272,13 @@ namespace parkmeter_management.Infrastructure.SignalR
                 "ORDRE",
                 parkmeterID);
 
-            await _notifRepo.AddAsync(new Notification
-            {
-                UserId = operatorId,
-                Title = $"Ordre complété — {serialNumber}",
-                Message = $"Intervention sur {serialNumber} enregistrée",
-                Type = "ORDRE",
-                ReferenceId = orderId,
-                IsRead = false,
-                CreatedAt = DateTime.UtcNow
-            });
+            await _notifRepo.AddAsync(new Notification(
+               operatorId,
+               $"Ordre complété — {serialNumber}",
+               $"Intervention sur {serialNumber} enregistrée",
+               "ORDRE",
+               orderId
+           ));
 
             await _hubContext.Clients
                 .Group("SUPERVISEUR")

@@ -12,7 +12,7 @@
         public string Status { get; set; } = "PENDING_ACTIVATION";
         public bool HasConfig { get; set; } = false;
 
-        // configuration — base
+        // configuration
         public int MaxDuration { get; set; } = 0;
 
         // pricing strategy

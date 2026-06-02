@@ -19,10 +19,7 @@ namespace parkmeter_management.Application.Commands.Users
             var user = await _userRepository.GetByIdAsync(command.Id);
             if (user == null) return false;
 
-            user.Name = command.Name;   
-            user.Email = command.Email;
-            user.Role = command.Role;
-            user.IsActive = command.IsActive;
+            user.Update(command.Name, command.Email, command.Role, command.IsActive);
 
             await _userRepository.UpdateAsync(user);
             return true;

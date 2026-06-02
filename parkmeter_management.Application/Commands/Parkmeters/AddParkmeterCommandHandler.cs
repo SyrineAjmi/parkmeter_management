@@ -39,16 +39,9 @@ namespace parkmeter_management.Application.Commands.Parkmeters
         throw new Exception(
             $"Parkmeter with serial number '{command.SerialNumber}' already exists.");
 
-    var parkmeter = new Parkmeter
-    {
-        Id           = Guid.NewGuid(),
-        SerialNumber = command.SerialNumber,
-        SiteId       = command.SiteId,
-        Status       = MeterStatus.PENDING_ACTIVATION,
-        CreatedAt    = DateTime.UtcNow
-    };
+            var parkmeter = new Parkmeter(command.SerialNumber, command.SiteId);
 
-    await _parkmeterRepository.AddAsync(parkmeter);
+            await _parkmeterRepository.AddAsync(parkmeter);
     //await _mqttPublisher.PublishNewParkmeterAsync(
     //       parkmeter.Id,
     //       parkmeter.SerialNumber);

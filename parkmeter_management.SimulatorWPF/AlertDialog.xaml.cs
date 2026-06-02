@@ -32,7 +32,7 @@ namespace SimulatorWPF
         {
             var root = new StackPanel { Margin = new Thickness(24) };
 
-            // Title
+            // title
             root.Children.Add(new TextBlock
             {
                 Text = "Déclencher une alerte",
@@ -50,7 +50,7 @@ namespace SimulatorWPF
                 Foreground = new SolidColorBrush(Color.FromRgb(0x33, 0x41, 0x55))
             });
 
-            // Alert options grid
+            // alert options grid
             var grid = new WrapPanel { Orientation = Orientation.Horizontal };
 
             var alerts = new[]
@@ -75,14 +75,14 @@ namespace SimulatorWPF
 
             root.Children.Add(grid);
 
-            // Separator
+            // separator
             root.Children.Add(new Border
             {
                 Height = 1,
                 Background = new SolidColorBrush(Color.FromRgb(0x1E, 0x29, 0x3B))
             });
 
-            // Buttons
+            // buttons
             var btnRow = new StackPanel
             {
                 Orientation = Orientation.Horizontal,
@@ -131,14 +131,14 @@ namespace SimulatorWPF
 
         private void OnAlertToggled(AlertType type, bool isChecked)
         {
-            // If CONNECTION_LOST selected → uncheck all others
+            // if CONNECTION_LOST uncheck all others
             if (type == AlertType.CONNECTION_LOST && isChecked)
             {
                 foreach (var (t, l, btn) in _options)
                     if (t != AlertType.CONNECTION_LOST)
                         btn.SetChecked(false);
             }
-            // If other selected → uncheck CONNECTION_LOST
+            // if other select uncheck CONNECTION_LOST
             else if (type != AlertType.CONNECTION_LOST && isChecked)
             {
                 foreach (var (t, l, btn) in _options)
@@ -171,7 +171,7 @@ namespace SimulatorWPF
         }
     }
 
-    // ── Toggle Button ─────────────────────────────────────────
+    //  tiggle button 
 
     public class ToggleButton : Border
     {

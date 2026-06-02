@@ -26,17 +26,14 @@ namespace parkmeter_management.Infrastructure.Persistence.Repositories
             }
             else
             {
-                // base
-                existing.MaxDuration = configuration.MaxDuration;
-                existing.UpdatedAt = DateTime.UtcNow;
-
-                // strategy
-                existing.StrategyType = configuration.StrategyType;
-                existing.PricePerHour = configuration.PricePerHour;
-                existing.PeakRate = configuration.PeakRate;
-                existing.OffPeakRate = configuration.OffPeakRate;
-                existing.WeekdayRate = configuration.WeekdayRate;
-                existing.WeekendRate = configuration.WeekendRate;
+                existing.UpdateConfig(
+                 configuration.MaxDuration,
+                 configuration.StrategyType,
+                 configuration.PricePerHour,
+                 configuration.PeakRate,
+                 configuration.OffPeakRate,
+                 configuration.WeekdayRate,
+                 configuration.WeekendRate);
             }
 
             await _context.SaveChangesAsync();

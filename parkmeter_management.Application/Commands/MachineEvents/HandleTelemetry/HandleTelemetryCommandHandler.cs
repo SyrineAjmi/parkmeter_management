@@ -26,7 +26,7 @@ namespace parkmeter_management.Application.Commands.MachineEvents.HandleTelemetr
                 .GetByIdAsync(command.ParkmeterId);
             if (parkmeter == null) return false;
 
-            parkmeter.CashAmount = command.CashAmount;
+            parkmeter.UpdateCashAmount(command.CashAmount);
             await _parkmeterRepository.UpdateAsync(parkmeter);
 
             await _notificationService.NotifyTelemetry(

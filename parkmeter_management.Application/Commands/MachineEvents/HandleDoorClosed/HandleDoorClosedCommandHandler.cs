@@ -37,8 +37,7 @@ namespace parkmeter_management.Application.Commands.MachineEvents.HandleDoorClos
                 a.Status == AlertStatus.NOT_RESOLVED &&
                 a.Type == AlertType.DOOR_OPEN))
             {
-                a.Status = AlertStatus.RESOLVED;
-                a.ResolvedAt = DateTime.UtcNow;
+                a.Resolve();
                 await _alertRepository.UpdateAsync(a);
                 await _notificationService.NotifyAlertResolved(  
                     a.Id,

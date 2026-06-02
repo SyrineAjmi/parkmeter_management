@@ -37,8 +37,7 @@ namespace parkmeter_management.Application.Commands.Alerts
             if (alert == null) return false;
 
             // mark resolved
-            alert.Status = AlertStatus.RESOLVED;
-            alert.ResolvedAt = DateTime.UtcNow;
+            alert.Resolve();
             await _alertRepository.UpdateAsync(alert);
             var parkmeter = await _parkmeterRepository.GetByIdAsync(alert.ParkmeterId);
 

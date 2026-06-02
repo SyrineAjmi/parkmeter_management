@@ -12,15 +12,14 @@ namespace SimulatorWPF
 {
     public partial class MainWindow : Window
     {
-        // ── Constants ─────────────────────────────────────────
 
-        //------------- SWITCH FOR DEMO TYPES---------------------
+        // SWITCH POUR DEMO 
 
         private const string API_URL = "https://localhost:7016"; //local 
         //private const string API_URL = "http://68.210.186.57:5000"; //cloud
 
 
-        // ── State ─────────────────────────────────────────────
+        //  State 
         private readonly HttpClient _http;
         private readonly JsonSerializerOptions _jsonOpts;
         private List<ParkMeterInfo> _parkmeters = new();
@@ -42,7 +41,7 @@ namespace SimulatorWPF
             _http = new HttpClient(handler) { BaseAddress = new Uri(API_URL + "/") };
             _jsonOpts = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
 
-            // UI refresh timer
+            //  refresh 
             _uiTimer = new DispatcherTimer
             {
                 Interval = TimeSpan.FromMilliseconds(500)
@@ -54,7 +53,7 @@ namespace SimulatorWPF
             Closing += OnClosing;
         }
 
-        // ── Startup ───────────────────────────────────────────
+        //startup 
 
         private async void OnLoaded(object sender, RoutedEventArgs e)
         {
@@ -84,57 +83,6 @@ namespace SimulatorWPF
             }
         }
 
-        //private async Task LoadParkmetersAsync()
-        //{
-        //    try
-        //    {
-        //        var response = await _http.GetAsync("api/Parkmeters");
-        //        var json = await response.Content.ReadAsStringAsync();
-        //        _parkmeters = JsonSerializer.Deserialize<List<ParkMeterInfo>>(
-        //            json, _jsonOpts) ?? new();
-
-        //        // build cards on UI thread
-        //        Dispatcher.Invoke(() =>
-        //        {
-        //            CardsPanel.Children.Clear();
-        //            _cards.Clear();
-
-        //            foreach (var pm in _parkmeters)
-        //            {
-        //                var card = new ParkmeterCard(
-        //                    pm,
-        //                    async (p) => await PowerOnAsync(p), 
-        //                    TriggerAlert,
-        //                    OperatorAction); _cards[pm.Id] = card;
-        //                CardsPanel.Children.Add(card);
-        //            }
-
-        //            StatusText.Text = $"MQTT localhost:1883  |  {_parkmeters.Count} parcmètres";
-        //            AddLog("SYSTEM", $"{_parkmeters.Count} parcmètres chargés", LogType.Success);
-        //        });
-
-
-
-        //        // auto start all parkmeters OUTSIDE Dispatcher.Invoke
-
-        //        var index = 0;
-        //        foreach (var pm in _parkmeters)
-        //        {
-        //            await PowerOnAsync(pm, index);
-        //            index++;
-        //            await Task.Delay(200);
-        //        }
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        Dispatcher.Invoke(() =>
-        //        {
-        //            StatusText.Text = "Erreur de connexion API";
-        //            AddLog("SYSTEM", $"Erreur: {ex.Message}", LogType.Error);
-        //        });
-        //    }
-        //}
-
         private async void OnRefresh(object sender, RoutedEventArgs e)
         {
             AddLog("SYSTEM", "Rafraîchissement...", LogType.Info);
@@ -150,7 +98,7 @@ namespace SimulatorWPF
                 var freshList = JsonSerializer.Deserialize<List<ParkMeterInfo>>(
                     json, _jsonOpts) ?? new();
 
-                // only add NEW parkmeters not already in list
+                // only add new pms 
                 var newPms = freshList
                     .Where(p => !_parkmeters.Any(existing => existing.Id == p.Id))
                     .ToList();
@@ -182,7 +130,7 @@ namespace SimulatorWPF
                         LogType.Success);
                 });
 
-                // auto start new parkmeters
+              
                 var index = _parkmeters.Count - newPms.Count;
                 foreach (var pm in newPms)
                 {
@@ -198,7 +146,7 @@ namespace SimulatorWPF
         }
 
 
-        // ── UI Timer ──────────────────────────────────────────
+        // UI Timer 
 
         private void OnUiTick(object? sender, EventArgs e)
         {
@@ -209,7 +157,7 @@ namespace SimulatorWPF
             }
         }
 
-        // ── Power ON ──────────────────────────────────────────
+        //  power  on  
 
         private async Task PowerOnAsync(ParkMeterInfo pm, int index = 0)
         {
@@ -255,7 +203,7 @@ namespace SimulatorWPF
         }
 
 
-        // ── Trigger Alert ─────────────────────────────────────
+        // trigger alerte 
 
         private async void TriggerAlert(ParkMeterInfo pm, AlertType alertType)
         {
@@ -264,7 +212,7 @@ namespace SimulatorWPF
             AddLog(pm.SerialNumber, $"Alerte déclenchée: {alertType}", LogType.Error);
         }
 
-        // ── Operator Action ───────────────────────────────────
+        // operator action 
 
         private async void OperatorAction(ParkMeterInfo pm, string action)
         {
@@ -291,7 +239,7 @@ namespace SimulatorWPF
             }
         }
 
-        // ── Log ───────────────────────────────────────────────
+        // log 
 
         public enum LogType { Info, Success, Warning, Error }
 
@@ -357,7 +305,7 @@ namespace SimulatorWPF
             });
         }
 
-        // ── Shutdown ──────────────────────────────────────────
+        //  shutdown 
 
         private async void OnClosing(object? sender, System.ComponentModel.CancelEventArgs e)
         {
@@ -371,7 +319,7 @@ namespace SimulatorWPF
         }
     }
 
-    // ── ParkMeter Info Model ──────────────────────────────────
+    //  model info of pm  
 
     public class ParkMeterInfo
     {

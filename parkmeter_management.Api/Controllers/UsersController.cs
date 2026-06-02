@@ -73,7 +73,7 @@ namespace parkmeter_management.Api.Controllers
 
         //----------------------------------------------------------
 
-        [Authorize(Roles = "GESTIONNAIRE_SYSTEME")]
+        [Authorize]
         [HttpPut("{id}/change-password")]
         public async Task<IActionResult> ChangePassword(
             Guid id,

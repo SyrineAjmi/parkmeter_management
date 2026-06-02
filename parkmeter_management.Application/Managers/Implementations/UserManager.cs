@@ -77,7 +77,7 @@ namespace parkmeter_management.Application.Managers.Implementations
             if (!isValid) return false;
 
             // hash new password
-            user.PasswordHash = _passwordHasher.Hash(newPassword);
+            user.UpdatePassword(_passwordHasher.Hash(newPassword));
             await _userRepository.UpdateAsync(user);
             return true;
         }

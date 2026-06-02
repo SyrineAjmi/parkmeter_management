@@ -41,8 +41,7 @@ namespace parkmeter_management.Application.Commands.MachineEvents.HandlePaperRef
                 (a.Type == AlertType.PAPER_EMPTY ||
                  a.Type == AlertType.PAPER_LOW)))
             {
-                a.Status = AlertStatus.RESOLVED;
-                a.ResolvedAt = DateTime.UtcNow;
+                a.Resolve();
                 await _alertRepository.UpdateAsync(a);
                 await _notificationService.NotifyAlertResolved( 
                     a.Id,
@@ -62,8 +61,7 @@ namespace parkmeter_management.Application.Commands.MachineEvents.HandlePaperRef
 
             if (pendingOrder != null)
             {
-                pendingOrder.Status = InterventionOrderStatus.COMPLETED;
-                pendingOrder.CompletedAt = DateTime.UtcNow;
+                pendingOrder.Complete();
                 await _interventionOrderRepository.UpdateAsync(pendingOrder);
 
                 if (parkmeter != null)

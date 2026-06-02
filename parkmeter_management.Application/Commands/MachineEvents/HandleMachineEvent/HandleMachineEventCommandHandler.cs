@@ -39,14 +39,11 @@ namespace parkmeter_management.Application.Commands.MachineEvents.HandleMachineE
                 if (!combinedEvent.HasFlag(type)) continue;
 
                 // persist audit log
-                await _machineEventRepository.AddAsync(new MachineEvent
-                {
-                    Id = Guid.NewGuid(),
-                    ParkmeterId = command.ParkmeterId,
-                    EventType = type,
-                    Description = type.ToString(),
-                    CreatedAt = command.CreatedAt
-                });
+                await _machineEventRepository.AddAsync(new MachineEvent(
+                    command.ParkmeterId,
+                    type,
+                    type.ToString()
+                ));
 
                 // dispatch to individual handler
                 IRequest<bool>? subCommand = type switch

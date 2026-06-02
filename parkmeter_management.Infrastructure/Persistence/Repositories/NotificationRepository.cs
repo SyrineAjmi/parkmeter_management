@@ -40,7 +40,7 @@ namespace parkmeter_management.Infrastructure.Persistence.Repositories
                 .FindAsync(notificationId);
             if (notification != null)
             {
-                notification.IsRead = true;
+                notification.MarkAsRead();
                 await _context.SaveChangesAsync();
             }
         }
@@ -52,7 +52,7 @@ namespace parkmeter_management.Infrastructure.Persistence.Repositories
                 .ToListAsync();
 
             foreach (var n in notifications)
-                n.IsRead = true;
+                n.MarkAsRead();
 
             await _context.SaveChangesAsync();
         }

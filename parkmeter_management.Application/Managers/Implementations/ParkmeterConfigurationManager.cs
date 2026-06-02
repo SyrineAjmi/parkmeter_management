@@ -94,7 +94,7 @@ namespace parkmeter_management.Application.Managers.Implementations
                 .GetByParkMeterIdAsync(parkmeterId);
             if (config == null) return false;
 
-            // reuse existing config — push full strategy to machine
+            
             return await _mediator.Send(new SendParkConfigCommand
             {
                 ParkmeterId = parkmeterId,

@@ -42,8 +42,7 @@ namespace parkmeter_management.Application.Commands.MachineEvents.HandleCashRemo
 
             if (activeSession != null)
             {
-                activeSession.Status = SessionStatus.CLOSED;
-                activeSession.EndDateTime = DateTime.UtcNow;
+                activeSession.Close();
                 await _sessionRepository.UpdateAsync(activeSession);
 
                 if (parkmeter != null)
@@ -59,22 +58,14 @@ namespace parkmeter_management.Application.Commands.MachineEvents.HandleCashRemo
             }
 
             // open new session
-            await _sessionRepository.AddAsync(new Session
-            {
-                Id = Guid.NewGuid(),
-                ParkmeterId = command.ParkmeterId,
-                StartDateTime = DateTime.UtcNow,
-                Status = SessionStatus.ACTIVE,
-                TotalTransactions = 0,
-                TotalAmount = 0
-            });
+            await _sessionRepository.AddAsync(new Session(command.ParkmeterId));
             Console.WriteLine("New session started");
 
             // reset cash amount in DB
 
             if (parkmeter != null)
             {
-                parkmeter.CashAmount = 0;
+                parkmeter.UpdateCashAmount(0);
                 await _parkmeterRepository.UpdateAsync(parkmeter);
                 Console.WriteLine($"[CASH_COLLECTED] CashAmount reset to 0");
             }
@@ -87,8 +78,7 @@ namespace parkmeter_management.Application.Commands.MachineEvents.HandleCashRemo
                 (a.Type == AlertType.CASH_BOX_FULL ||
                  a.Type == AlertType.CASH_BOX_WARN)))
             {
-                a.Status = AlertStatus.RESOLVED;
-                a.ResolvedAt = DateTime.UtcNow;
+                a.Resolve();
                 await _alertRepository.UpdateAsync(a);
                 await _notificationService.NotifyAlertResolved(  
                     a.Id,
@@ -105,8 +95,7 @@ namespace parkmeter_management.Application.Commands.MachineEvents.HandleCashRemo
 
             if (pendingOrder != null)
             {
-                pendingOrder.Status = InterventionOrderStatus.COMPLETED;
-                pendingOrder.CompletedAt = DateTime.UtcNow;
+                pendingOrder.Complete();
                 await _interventionOrderRepository.UpdateAsync(pendingOrder);
 
                 if (parkmeter != null)

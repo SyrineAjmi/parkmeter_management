@@ -32,7 +32,7 @@ namespace SimulatorWPF
 
             root.Children.Add(new TextBlock
             {
-                Text = "🔧 Action opérateur",
+                Text = "Action opérateur",
                 FontFamily = new FontFamily("Consolas"),
                 FontSize = 14,
                 FontWeight = FontWeights.Bold,
@@ -49,10 +49,10 @@ namespace SimulatorWPF
 
             var actions = new[]
             {
-                ("empty",    "💰", "Vider la caisse"),
-                ("paper",    "🧾", "Recharger papier"),
-                ("door",     "🚪", "Fermer la porte"),
-                ("hardware", "🔧", "Réparer matériel"),
+                ("empty",    "", "Vider la caisse"),
+                ("paper",    "", "Recharger papier"),
+                ("door",     "", "Fermer la porte"),
+                ("hardware", "", "Réparer matériel"),
             };
 
             foreach (var (key, icon, label) in actions)

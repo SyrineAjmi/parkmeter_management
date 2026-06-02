@@ -10,7 +10,7 @@ namespace SimulatorWPF
 {
     public class ParkmeterCard : Border
     {
-        // ── Status Config ─────────────────────────────────────
+        // status 
         private static readonly Dictionary<string, (string color, string bg, string label)> StatusConfig = new()
         {
             ["IN_SERVICE"]              = ("#10B981", "#022C22", "EN SERVICE"),
@@ -19,13 +19,13 @@ namespace SimulatorWPF
             ["PENDING_ACTIVATION"]      = ("#818CF8", "#1E1B4B", "EN ATTENTE D'ACTIVATION"),
         };
 
-        // ── Fields ────────────────────────────────────────────
+        // fields 
         private readonly ParkMeterInfo _pm;
         private readonly Action<ParkMeterInfo> _onPowerOn;
         private readonly Action<ParkMeterInfo, AlertType> _onAlert;
         private readonly Action<ParkMeterInfo, string> _onOperator;
 
-        // ── UI refs ───────────────────────────────────────────
+        //  ui refs 
         private TextBlock _statusLabel = null!;
         private Border _statusBadge = null!;
         private Ellipse _statusDot = null!;
@@ -69,7 +69,7 @@ namespace SimulatorWPF
         {
             var root = new StackPanel();
 
-            // ── Header ────────────────────────────────────────
+            // header 
             var header = new Grid { Margin = new Thickness(0, 0, 0, 12) };
             header.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
             header.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
@@ -117,7 +117,7 @@ namespace SimulatorWPF
             header.Children.Add(_powerBtn);
             root.Children.Add(header);
 
-            // ── Status Badge ──────────────────────────────────
+            // status badge 
             _statusBadge = new Border
             {
                 CornerRadius = new CornerRadius(8),
@@ -148,7 +148,7 @@ namespace SimulatorWPF
             _statusBadge.Child = statusRow;
             root.Children.Add(_statusBadge);
 
-            // ── Config Badge ──────────────────────────────────
+            // config badge 
             _configBadge = new Border
             {
                 CornerRadius = new CornerRadius(5),
@@ -169,7 +169,7 @@ namespace SimulatorWPF
             _configBadge.Child = _configText;
             root.Children.Add(_configBadge);
 
-            // ── Active Content ────────────────────────────────
+            // active content 
             _activeContent = new StackPanel { Visibility = Visibility.Collapsed };
 
             _activeContent.Children.Add(new Border
@@ -179,11 +179,11 @@ namespace SimulatorWPF
                 Margin = new Thickness(0, 0, 0, 10)
             });
 
-            // Cash
+            // cash
             _activeContent.Children.Add(CreateLevelSection(
                 " CAISSE", out _cashValue, out _cashBar, out _cashBarGrid));
 
-            // Paper
+            // papier
             _activeContent.Children.Add(CreateLevelSection(
                 " PAPIER", out _paperValue, out _paperBar, out _paperBarGrid));
 
@@ -194,7 +194,7 @@ namespace SimulatorWPF
                 Margin = new Thickness(0, 4, 0, 8)
             });
 
-            // Flags
+            // flags
             _flagsPanel = new StackPanel
             {
                 Orientation = Orientation.Horizontal,
@@ -203,7 +203,7 @@ namespace SimulatorWPF
             };
             _activeContent.Children.Add(_flagsPanel);
 
-            // Transactions
+            // transactions
             var txRow = new Grid { Margin = new Thickness(0, 0, 0, 12) };
             txRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
             txRow.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
@@ -230,7 +230,7 @@ namespace SimulatorWPF
             txRow.Children.Add(_txCount);
             _activeContent.Children.Add(txRow);
 
-            // Buttons
+            // buttons
             var btnRow = new Grid();
             btnRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
             btnRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(8) });
@@ -254,7 +254,7 @@ namespace SimulatorWPF
 
             root.Children.Add(_activeContent);
 
-            // ── Off State ─────────────────────────────────────
+            // off state 
             _offText = new TextBlock
             {
                 Text = "Éteint — cliquer sur ⏻ pour démarrer",
@@ -269,7 +269,7 @@ namespace SimulatorWPF
             Child = root;
         }
 
-        // ── Level Section ─────────────────────────────────────
+        // level section
 
         private Border CreateLevelSection(string label,
             out TextBlock valueText, out Rectangle bar, out Grid barGrid)
@@ -343,7 +343,7 @@ namespace SimulatorWPF
             return section;
         }
 
-        // ── Action Button ─────────────────────────────────────
+        // action button 
 
         private Button CreateActionButton(string text, Color bg, Color accent)
         {
@@ -364,20 +364,20 @@ namespace SimulatorWPF
             };
         }
 
-        // ── Update State ──────────────────────────────────────
+        // update state 
 
         public void UpdateState(ParkMeterSimulator sim)
         {
             var status = sim.Status;
 
-            // Power button
+            // power button
             _powerBtn.Content = "⏻ ON";
             _powerBtn.Background = new SolidColorBrush(Color.FromRgb(0x05, 0x1F, 0x12));
             _powerBtn.Foreground = new SolidColorBrush(Color.FromRgb(0x10, 0xB9, 0x81));
             _powerBtn.BorderBrush = new SolidColorBrush(Color.FromRgb(0x10, 0xB9, 0x81));
             _powerBtn.IsEnabled = false;
 
-            // Status
+            // status
             var (color, bg, label) = StatusConfig.GetValueOrDefault(
                 status, ("#818CF8", "#1E1B4B", status));
             var statusColor = (Color)ColorConverter.ConvertFromString(color);
@@ -390,18 +390,18 @@ namespace SimulatorWPF
             _statusBadge.BorderBrush = new SolidColorBrush(
                 Color.FromArgb(60, statusColor.R, statusColor.G, statusColor.B));
 
-            // Config
+            // config
             if (sim.HasConfig)
             {
                 _configText.Text = $"⚙  {sim.StrategyType}";
                 _configBadge.Visibility = Visibility.Visible;
             }
 
-            // Show content
+            // show content
             _activeContent.Visibility = Visibility.Visible;
             _offText.Visibility = Visibility.Collapsed;
 
-            // Cash
+            // cash
             var cashPct = Math.Min(100.0, (double)(sim.CashAmount / 40.000m) * 100.0);
             _cashValue.Text = $"{sim.CashAmount:F3} DT";
             var cashColor = cashPct >= 100 ? Color.FromRgb(0xEF, 0x44, 0x44)
@@ -409,7 +409,7 @@ namespace SimulatorWPF
                 : Color.FromRgb(0x10, 0xB9, 0x81);
             _cashValue.Foreground = new SolidColorBrush(cashColor);
 
-            // Paper
+            // papier
             var paperPct = (double)sim.PaperLevel;
             _paperValue.Text = $"{sim.PaperLevel}%";
             var paperColor = paperPct <= 5 ? Color.FromRgb(0xEF, 0x44, 0x44)
@@ -417,14 +417,14 @@ namespace SimulatorWPF
                 : Color.FromRgb(0x10, 0xB9, 0x81);
             _paperValue.Foreground = new SolidColorBrush(paperColor);
 
-            // Bars
+            // bars
             Dispatcher.BeginInvoke(DispatcherPriority.Background, () =>
             {
                 UpdateBar(_cashBar, _cashBarGrid, cashPct, cashColor);
                 UpdateBar(_paperBar, _paperBarGrid, paperPct, paperColor);
             });
 
-            // Flags as chips
+            // flags of (alerts...) 
             _flagsPanel.Children.Clear();
             var flags = new List<(string text, Color c)>();
             if (sim.CashBoxAlertSent) flags.Add(("CASH_BOX_FULL", Color.FromRgb(0xEF, 0x44, 0x44)));
@@ -461,10 +461,10 @@ namespace SimulatorWPF
             _flagsPanel.Visibility = flags.Count > 0
                 ? Visibility.Visible : Visibility.Collapsed;
 
-            // Transactions
+            // transactions
             _txCount.Text = sim.TransactionCount.ToString();
 
-            // Card border + background glow
+            // card border + background glow
             BorderBrush = new SolidColorBrush(
                 Color.FromArgb(100, statusColor.R, statusColor.G, statusColor.B));
 

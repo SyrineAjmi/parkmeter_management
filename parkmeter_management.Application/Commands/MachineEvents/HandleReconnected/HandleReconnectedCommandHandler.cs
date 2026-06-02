@@ -43,8 +43,7 @@ namespace parkmeter_management.Application.Commands.MachineEvents.HandleReconnec
                 a.Status == AlertStatus.NOT_RESOLVED &&
                 a.Type == AlertType.CONNECTION_LOST))
             {
-                a.Status = AlertStatus.RESOLVED;
-                a.ResolvedAt = DateTime.UtcNow;
+                a.Resolve();
                 await _alertRepository.UpdateAsync(a);
                 Console.WriteLine(
                     "Auto-resolved on reconnect: CONNECTION_LOST");

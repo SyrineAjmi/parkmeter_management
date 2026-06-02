@@ -168,60 +168,32 @@ using (var scope = app.Services.CreateScope())
     if (!context.Users.Any())
     {
         // ── Users ──────────────────────────────────────
-        var agent = new User
-        {
-            Id = Guid.NewGuid(),
-            Name = "Agent",
-            Email = "agent@parkmeter.tn",
-            PasswordHash = BCrypt.Net.BCrypt.HashPassword("Agent123!"),
-            Role = Role.AGENT_INSTALLATION,
-            IsActive = true,
-            CreatedAt = DateTime.UtcNow
-        };
+        var agent = new User("Agent",
+            "agent@parkmeter.tn",
+            BCrypt.Net.BCrypt.HashPassword("Agent123!"),
+            Role.AGENT_INSTALLATION);
 
-        var superviseur = new User
-        {
-            Id = Guid.NewGuid(),
-            Name = "Superviseur",
-            Email = "sup@parkmeter.tn",
-            PasswordHash = BCrypt.Net.BCrypt.HashPassword("Sup123!"),
-            Role = Role.SUPERVISEUR,
-            IsActive = true,
-            CreatedAt = DateTime.UtcNow
-        };
+        var superviseur = new User("Superviseur",
+                          "sup@parkmeter.tn",
+                          BCrypt.Net.BCrypt.HashPassword("Sup123!"),
+                          Role.SUPERVISEUR);
 
-        var gestionnaire = new User
-        {
-            Id = Guid.NewGuid(),
-            Name = "Gestionnaire",
-            Email = "gest@parkmeter.tn",
-            PasswordHash = BCrypt.Net.BCrypt.HashPassword("Gest123!"),
-            Role = Role.GESTIONNAIRE_SYSTEME,
-            IsActive = true,
-            CreatedAt = DateTime.UtcNow
-        };
+        var gestionnaire = new User("Gestionnaire",
+                            "gest@parkmeter.tn\"",
+                            BCrypt.Net.BCrypt.HashPassword("Gest123!"),
+                             Role.GESTIONNAIRE_SYSTEME);
 
-        var financier = new User
-        {
-            Id = Guid.NewGuid(),
-            Name = "Financier",
-            Email = "fin@parkmeter.tn",
-            PasswordHash = BCrypt.Net.BCrypt.HashPassword("Fin123!"),
-            Role = Role.RESPONSABLE_FINANCIER,
-            IsActive = true,
-            CreatedAt = DateTime.UtcNow
-        };
+        var financier = new User("Financier",
+                            "fin@parkmeter.tn",
+                            BCrypt.Net.BCrypt.HashPassword("Fin123!"),
+                            Role.RESPONSABLE_FINANCIER);
 
-        var operateur = new User
-        {
-            Id = Guid.NewGuid(),
-            Name = "Operateur",
-            Email = "op@parkmeter.tn",
-            PasswordHash = BCrypt.Net.BCrypt.HashPassword("Op123!"),
-            Role = Role.OPERATEUR,
-            IsActive = true,
-            CreatedAt = DateTime.UtcNow
-        };
+        var operateur = new User("Operateur",
+                        "op@parkmeter.tn",
+                        BCrypt.Net.BCrypt.HashPassword("Op123!"),
+                        Role.OPERATEUR);
+
+
 
         await context.Users.AddRangeAsync(
             agent, superviseur, gestionnaire,
@@ -230,27 +202,22 @@ using (var scope = app.Services.CreateScope())
         Console.WriteLine("✅ Users seeded");
 
         // ── Sites ───────────────────────────────────────
-        var site1 = new Site
-        {
-            Id = Guid.NewGuid(),
-            Name = "Centre Ville",
-            Address = "Rue de la Republique, Tunis",
-            Description = "Parking centre ville",
-            Latitude = 36.8190,   
-            Longitude = 10.1658,  
-            CreatedAt = DateTime.UtcNow
-        };
+        var site1 = new Site(
+            "Centre Ville",
+            "Rue de la Republique, Tunis",
+            "Parking centre ville",
+            36.8190,
+            10.1658
+            );
 
         var site2 = new Site
-        {
-            Id = Guid.NewGuid(),
-            Name = "La Marsa",
-            Address = "Avenue Habib Bourguiba, La Marsa",
-            Description = "Parking bord de mer",
-            Latitude = 36.8781,
-            Longitude = 10.3247,
-            CreatedAt = DateTime.UtcNow
-        };
+        (
+            "La Marsa",
+            "Avenue Habib Bourguiba, La Marsa",
+            "Parking bord de mer",
+            36.8781,
+            10.3247
+        );
 
         await context.Sites.AddRangeAsync(site1, site2);
         await context.SaveChangesAsync();
@@ -258,80 +225,49 @@ using (var scope = app.Services.CreateScope())
 
         // ── Parkmeters ──────────────────────────────────
         var pm1 = new Parkmeter
-        {
-            Id = Guid.NewGuid(),
-            SerialNumber = "PM001",
-            Status = MeterStatus.PENDING_ACTIVATION,
-            SiteId = site1.Id,
-            CreatedAt = DateTime.UtcNow
-        };
+        ("PM001",
+          site1.Id
+        );
 
         var pm2 = new Parkmeter
-        {
-            Id = Guid.NewGuid(),
-            SerialNumber = "PM002",
-            Status = MeterStatus.PENDING_ACTIVATION,
-            SiteId = site1.Id,
-            CreatedAt = DateTime.UtcNow
-        };
+        (
+              "PM002",
+              site1.Id
+        );
 
         var pm3 = new Parkmeter
-        {
-            Id = Guid.NewGuid(),
-            SerialNumber = "PM003",
-            Status = MeterStatus.PENDING_ACTIVATION,
-            SiteId = site2.Id,
-            CreatedAt = DateTime.UtcNow
-        };
+        (
+            "PM003",
+            site2.Id
+        );
 
         var pm4 = new Parkmeter
-        {
-            Id = Guid.NewGuid(),
-            SerialNumber = "PM004",
-            Status = MeterStatus.PENDING_ACTIVATION,
-            SiteId = site2.Id,
-            CreatedAt = DateTime.UtcNow
-        };
+       ( 
+            "PM004",
+            site2.Id
+        );
 
         await context.Parkmeters.AddRangeAsync(pm1, pm2, pm3, pm4);
         await context.SaveChangesAsync();
-        Console.WriteLine("✅ Parkmeters seeded");
+        Console.WriteLine("Parkmeters seeded");
 
         // ── Configurations ──────────────────────────────
         var config1 = new ParkMeterConfig
-        {
-            Id = Guid.NewGuid(),
-            ParkmeterId = pm1.Id,
-            MaxDuration = 120,
-            StrategyType = PricingStrategyType.FLAT_RATE,
-            PricePerHour = 1.000m,
-            CreatedAt = DateTime.UtcNow,
-            UpdatedAt = DateTime.UtcNow
-        };
+        (pm1.Id,
+        120,
+        PricingStrategyType.FLAT_RATE,
+        1.000m, 
+        null, 
+        null, 
+        null, 
+        null
+        );
 
-        var config2 = new ParkMeterConfig
-        {
-            Id = Guid.NewGuid(),
-            ParkmeterId = pm2.Id,
-            MaxDuration = 120,
-            StrategyType = PricingStrategyType.TIME_OF_DAY,
-            PeakRate = 2.500m,
-            OffPeakRate = 1.000m,
-            CreatedAt = DateTime.UtcNow,
-            UpdatedAt = DateTime.UtcNow
-        };
+        var config2 = new ParkMeterConfig(pm2.Id, 120, PricingStrategyType.TIME_OF_DAY, null, 2.500m, 1.000m, null, null);
 
-        var config3 = new ParkMeterConfig
-        {
-            Id = Guid.NewGuid(),
-            ParkmeterId = pm3.Id,
-            MaxDuration = 90,
-            StrategyType = PricingStrategyType.WEEKDAY_WEEKEND,
-            WeekdayRate = 1.500m,
-            WeekendRate = 0.500m,
-            CreatedAt = DateTime.UtcNow,
-            UpdatedAt = DateTime.UtcNow
-        };
+
+        var config3 = new ParkMeterConfig(pm3.Id, 90, PricingStrategyType.WEEKDAY_WEEKEND, null, null, null, 1.500m, 0.500m);
+
 
         await context.Configurations
             .AddRangeAsync(config1, config2, config3);
@@ -339,15 +275,8 @@ using (var scope = app.Services.CreateScope())
         Console.WriteLine(" Configurations seeded");
 
         // ── Sessions ────────────────────────────────────
-        var session1 = new Session
-        {
-            Id = Guid.NewGuid(),
-            ParkmeterId = pm1.Id,
-            StartDateTime = DateTime.UtcNow,
-            Status = SessionStatus.ACTIVE,
-            TotalTransactions = 0,
-            TotalAmount = 0
-        };
+        var session1 = new Session(pm1.Id);
+
         await context.Sessions
             .AddRangeAsync(session1);
         await context.SaveChangesAsync();

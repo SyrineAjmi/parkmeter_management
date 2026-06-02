@@ -35,7 +35,7 @@ namespace parkmeter_management.Application.Commands.MachineEvents.HandleStatus
                 return true;
             }
 
-            parkmeter.Status = command.Status;
+            parkmeter.UpdateStatus(command.Status);
             await _parkmeterRepository.UpdateAsync(parkmeter);
 
             await _notificationService.NotifyStatusChanged(
