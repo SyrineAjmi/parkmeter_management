@@ -77,5 +77,13 @@ namespace parkmeter_management.Infrastructure.Persistence.Repositories
                 .ToListAsync();
         }
 
+        public async Task<List<Transaction>> GetByPeriodAsync(int month, int year)
+        {
+            return await _context.Transactions
+                .Where(t => t.CreatedAt.Month == month && t.CreatedAt.Year == year)
+                .ToListAsync();
+        }
+
+
     }
 }

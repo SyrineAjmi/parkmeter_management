@@ -19,14 +19,77 @@ namespace parkmeter_management.Api.Controllers
 
         //----------------------------------------------------------
 
+        //[Authorize(Roles = "RESPONSABLE_FINANCIER")]
+        //[HttpGet]
+        //public async Task<IActionResult> GetAll(
+        //    [FromQuery] int page = 1,
+        //    [FromQuery] int pageSize = 20)
+        //{
+        //    var transactions = await _transactionManager
+        //        .GetAllTransactions();
+
+        //    var total = transactions.Count();
+        //    var paged = transactions
+        //        .OrderByDescending(t => t.CreatedAt)
+        //        .Skip((page - 1) * pageSize)
+        //        .Take(pageSize)
+        //        .ToDtos();
+
+        //    return Ok(new
+        //    {
+        //        Data = paged,
+        //        Page = page,
+        //        PageSize = pageSize,
+        //        Total = total,
+        //        TotalPages = (int)Math.Ceiling((double)total / pageSize)
+        //    });
+        //}
+
+        //----------------------------------------------------------
+
+        [Authorize(Roles = "RESPONSABLE_FINANCIER")]
+        [HttpGet("parkmeter/{parkmeterID}")]
+        public async Task<IActionResult> GetByParkmeter(Guid parkmeterID)
+        {
+            var transactions = await _transactionManager
+                .GetByParkmeter(parkmeterID);
+            return Ok(transactions.ToDtos());
+
+        }
+
+
+        //----------------------------------------------------------
+
         [Authorize(Roles = "RESPONSABLE_FINANCIER")]
         [HttpGet]
         public async Task<IActionResult> GetAll(
             [FromQuery] int page = 1,
-            [FromQuery] int pageSize = 20)
+            [FromQuery] int pageSize = 20,
+            [FromQuery] string? status = null,
+            [FromQuery] string? serial = null,
+            [FromQuery] DateTime? from = null,
+            [FromQuery] DateTime? to = null)
         {
-            var transactions = await _transactionManager
-                .GetAllTransactions();
+            var transactions = await _transactionManager.GetAllTransactions();
+
+            // all filters 
+            if (!string.IsNullOrEmpty(status))
+                transactions = transactions
+                    .Where(t => t.Status.ToString() == status).ToList();
+
+            if (!string.IsNullOrEmpty(serial))
+                transactions = transactions
+                    .Where(t => t.Parkmeter?.SerialNumber
+                        .Equals(serial, StringComparison.OrdinalIgnoreCase) == true)
+                    .ToList();
+
+            if (from.HasValue)
+                transactions = transactions
+                    .Where(t => t.CreatedAt >= from.Value).ToList();
+
+            if (to.HasValue)
+                transactions = transactions
+                    .Where(t => t.CreatedAt <= to.Value).ToList();
 
             var total = transactions.Count();
             var paged = transactions
@@ -45,72 +108,6 @@ namespace parkmeter_management.Api.Controllers
             });
         }
 
-        //----------------------------------------------------------
-
-        [Authorize(Roles = "RESPONSABLE_FINANCIER")]
-        [HttpGet("parkmeter/{parkmeterID}")]
-        public async Task<IActionResult> GetByParkmeter(Guid parkmeterID)
-        {
-            var transactions = await _transactionManager
-                .GetByParkmeter(parkmeterID);
-            return Ok(transactions.ToDtos());
-
-        }
-
-
-        //----------------------------------------------------------
-
-        [Authorize(Roles = "RESPONSABLE_FINANCIER")]
-        [HttpGet("filter")]
-        public async Task<IActionResult> FilterByStatus(
-            [FromQuery] string status)
-        {
-            var transactions = await _transactionManager
-                .FilterByStatus(status);
-            return Ok(transactions.ToDtos());
-
-        }
-
-        //----------------------------------------------------------
-
-        [Authorize(Roles = "RESPONSABLE_FINANCIER")]
-        [HttpGet("session/{sessionId}")]
-        public async Task<IActionResult> GetBySession(Guid sessionId)
-        {
-            var transactions = await _transactionManager
-                .GetBySession(sessionId);
-
-            return Ok(transactions.ToDtos());
-
-        }
-
-        //----------------------------------------------------------
-
-        [Authorize(Roles = "RESPONSABLE_FINANCIER")]
-        [HttpGet("filter/date")]
-        public async Task<IActionResult> FilterByDate(
-        [FromQuery] DateTime? from,
-        [FromQuery] DateTime? to)
-        {
-            var transactions = await _transactionManager
-                .GetByDateRange(from, to);
-
-            return Ok(transactions.ToDtos());
-
-        }
-
-        //----------------------------------------------------------
-
-        [Authorize(Roles = "RESPONSABLE_FINANCIER")]
-        [HttpGet("filter/serial")]
-        public async Task<IActionResult> FilterBySerial([FromQuery] string serial)
-        {
-            var transactions = await _transactionManager.GetAllTransactions();
-            var filtered = transactions
-                .Where(t => t.Parkmeter?.SerialNumber
-                    .Contains(serial, StringComparison.OrdinalIgnoreCase) == true);
-            return Ok(filtered.ToDtos());
-        }
 
     }
 }

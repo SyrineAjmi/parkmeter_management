@@ -70,5 +70,13 @@ namespace parkmeter_management.Infrastructure.Persistence.Repositories
                 .OrderByDescending(p => p.CreatedAt)
                 .ToListAsync();
         }
+
+        public async Task<List<Parkmeter>> GetAllWithSiteAsync()
+        {
+            return await _context.Parkmeters
+                .Include(p => p.Site)
+                .ToListAsync();
+        }
+
     }
 }

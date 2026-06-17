@@ -12,6 +12,7 @@ using parkmeter_management.Application.Managers.Implementations;
 using parkmeter_management.Application.Managers.Interfaces;
 using parkmeter_management.Domain.Entities;
 using parkmeter_management.Domain.Enums;
+using parkmeter_management.Infrastructure.AI;
 using parkmeter_management.Infrastructure.Auth;
 using parkmeter_management.Infrastructure.Mqtt;
 using parkmeter_management.Infrastructure.Persistence;
@@ -50,6 +51,14 @@ builder.Services.AddValidatorsFromAssemblyContaining<Program>();
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlServer(
         builder.Configuration.GetConnectionString("DefaultConnection")));
+
+// ── AI ────────────────────────────────────────────────────────
+builder.Services.AddHttpClient("Gemini", client =>
+{
+    client.BaseAddress = new Uri("https://generativelanguage.googleapis.com/");
+});
+builder.Services.AddScoped<IAiReportService, AiReportService>();
+
 
 // ── JWT authentication ────────────────────────
 builder.Services

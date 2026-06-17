@@ -13,6 +13,8 @@ namespace parkmeter_management.Application.Interfaces.Repositories
         Task<IEnumerable<Alert>> GetByParkmeterAsync(Guid parkmeterID);
         Task<IEnumerable<Alert>> GetUnresolvedAsync();
         Task<IEnumerable<Alert>> GetUnresolvedByParkmeterAsync(Guid parkmeterID);
+        Task<List<Alert>> GetByPeriodAsync(int month, int year);
+
 
     }
 

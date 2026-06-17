@@ -297,11 +297,11 @@ namespace SimulatorWPF
                 entry.Children.Add(serialBlock);
                 entry.Children.Add(msg);
 
-                LogPanel.Children.Insert(0, entry);
+                //LogPanel.Children.Insert(0, entry);
 
-                // keep max 150 entries
-                while (LogPanel.Children.Count > 150)
-                    LogPanel.Children.RemoveAt(LogPanel.Children.Count - 1);
+                //// keep max 150 entries
+                //while (LogPanel.Children.Count > 150)
+                //    LogPanel.Children.RemoveAt(LogPanel.Children.Count - 1);
             });
         }
 

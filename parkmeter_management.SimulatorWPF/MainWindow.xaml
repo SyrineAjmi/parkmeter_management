@@ -93,7 +93,7 @@
         <Grid Grid.Row="1">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="280"/>
+                <!--  <ColumnDefinition Width="280"/>-->
             </Grid.ColumnDefinitions>
 
             <!-- Cards Area -->
@@ -121,7 +121,7 @@
             </Grid>
 
             <!-- Log Panel -->
-            <Border Grid.Column="1" 
+            <!-- <Border Grid.Column="1" 
                     Background="#070D1A" 
                     BorderBrush="#0F172A" 
                     BorderThickness="1,0,0,0">
@@ -146,7 +146,7 @@
                         <StackPanel x:Name="LogPanel"/>
                     </ScrollViewer>
                 </Grid>
-            </Border>
+            </Border>-->
         </Grid>
     </Grid>
 </Window>

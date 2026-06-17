@@ -303,7 +303,7 @@ namespace parkmeter_management.SimulatorCore
                 //------------- SWITCH FOR DEMO  ---------------------
 
                 .WithTcpServer("localhost", 1883) //local
-                //.WithTcpServer("68.210.186.57", 1883) //cloud
+              //.WithTcpServer("68.210.186.57", 1883) //cloud
                 .WithClientId($"simulator-{_state.SerialNumber}")
                 .Build();
 

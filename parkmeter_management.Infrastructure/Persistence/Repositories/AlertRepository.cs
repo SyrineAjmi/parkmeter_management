@@ -77,5 +77,13 @@ namespace parkmeter_management.Infrastructure.Persistence.Repositories
                 .OrderByDescending(a => a.CreatedAt)
                 .ToListAsync();
         }
+
+        public async Task<List<Alert>> GetByPeriodAsync(int month, int year)
+        {
+            return await _context.Alerts
+                .Where(a => a.CreatedAt.Month == month && a.CreatedAt.Year == year)
+                .ToListAsync();
+        }
+
     }
 }

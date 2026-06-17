@@ -13,6 +13,8 @@ namespace parkmeter_management.Application.Interfaces.Repositories
         Task DeleteAsync(Guid id);
         Task<Parkmeter?> GetBySerialNumberAsync(string serialNumber);
         Task<IEnumerable<Parkmeter>> GetByStatusAsync(MeterStatus status);
+        Task<List<Parkmeter>> GetAllWithSiteAsync();
+
 
     }
 }
