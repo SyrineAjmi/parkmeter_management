@@ -15,8 +15,8 @@ namespace SimulatorWPF
 
         // SWITCH POUR DEMO 
 
-        private const string API_URL = "https://localhost:7016"; //local 
-        //private const string API_URL = "http://68.210.186.57:5000"; //cloud
+        //private const string API_URL = "https://localhost:7016"; //local 
+        private const string API_URL = "http://134.112.18.30:5000"; //cloud
 
 
         //  State 
