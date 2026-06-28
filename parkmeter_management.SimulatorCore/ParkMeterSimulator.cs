@@ -300,10 +300,10 @@ namespace parkmeter_management.SimulatorCore
             CancellationToken ct)
         {
             var options = new MqttClientOptionsBuilder()
-              //------------- SWITCH FOR DEMO  ---------------------
+                //------------- SWITCH FOR DEMO  ---------------------
 
-              //.WithTcpServer("localhost", 1883) //local
-                .WithTcpServer("134.112.18.30", 1883) //cloud
+                .WithTcpServer("localhost", 1883) //local
+              //.WithTcpServer("68.210.186.57", 1883) //cloud
                 .WithClientId($"simulator-{_state.SerialNumber}")
                 .Build();
 

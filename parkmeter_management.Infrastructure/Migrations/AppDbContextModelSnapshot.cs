@@ -359,10 +359,15 @@ namespace parkmeter_management.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<Guid?>("SiteId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.HasKey("Id");
 
                     b.HasIndex("Email")
                         .IsUnique();
+
+                    b.HasIndex("SiteId");
 
                     b.ToTable("Users");
                 });
@@ -448,6 +453,16 @@ namespace parkmeter_management.Infrastructure.Migrations
                         .IsRequired();
 
                     b.Navigation("Parkmeter");
+                });
+
+            modelBuilder.Entity("parkmeter_management.Domain.Entities.User", b =>
+                {
+                    b.HasOne("parkmeter_management.Domain.Entities.Site", "Site")
+                        .WithMany()
+                        .HasForeignKey("SiteId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("Site");
                 });
 
             modelBuilder.Entity("parkmeter_management.Domain.Entities.Parkmeter", b =>

@@ -30,6 +30,7 @@ namespace parkmeter_management.Application.Commands.Users
 
             var passwordHash = _passwordHasher.Hash(command.Password);
 
+
             var user = new User
             (
                 command.Name,
@@ -37,6 +38,14 @@ namespace parkmeter_management.Application.Commands.Users
                 passwordHash,
                 command.Role
             );
+
+            if (command.Role == Role.OPERATEUR)
+            {
+                if (!command.SiteId.HasValue)
+                    throw new Exception("Un opérateur doit être affecté à un site.");
+
+                user.AssignToSite(command.SiteId.Value);
+            }
 
             await _userRepository.AddAsync(user);
             return user.Id;

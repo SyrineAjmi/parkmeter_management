@@ -1,4 +1,5 @@
 ﻿using MediatR;
+using parkmeter_management.Domain.Entities;
 using parkmeter_management.Domain.Enums;
 
 namespace parkmeter_management.Application.Commands.Users
@@ -9,5 +10,8 @@ namespace parkmeter_management.Application.Commands.Users
         public string Email { get; set; } = string.Empty;
         public string Password { get; set; } = string.Empty;
         public Role Role { get; set; }
+        public Guid? SiteId { get; set; }
+
+
     }
 }

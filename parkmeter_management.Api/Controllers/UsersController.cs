@@ -58,7 +58,8 @@ namespace parkmeter_management.Api.Controllers
                     request.Name,
                     request.Email,
                     request.Password,
-                    role);
+                    role,
+                    request.SiteId);
                 return Ok(new
                 {
                     Id = id,

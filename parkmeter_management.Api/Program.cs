@@ -188,7 +188,7 @@ using (var scope = app.Services.CreateScope())
                           Role.SUPERVISEUR);
 
         var gestionnaire = new User("Gestionnaire",
-                            "gest@parkmeter.tn\"",
+                            "gest@parkmeter.tn",
                             BCrypt.Net.BCrypt.HashPassword("Gest123!"),
                              Role.GESTIONNAIRE_SYSTEME);
 
@@ -218,6 +218,9 @@ using (var scope = app.Services.CreateScope())
             36.8190,
             10.1658
             );
+
+        operateur.AssignToSite(site1.Id);
+
 
         var site2 = new Site
         (

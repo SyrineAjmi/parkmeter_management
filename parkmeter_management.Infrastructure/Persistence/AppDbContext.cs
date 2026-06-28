@@ -88,6 +88,10 @@ namespace parkmeter_management.Infrastructure.Persistence
                 entity.HasKey(e => e.Id);
                 entity.Property(e => e.Role).HasConversion<string>();
                 entity.HasIndex(e => e.Email).IsUnique();
+                entity.HasOne(e => e.Site)
+                       .WithMany()
+                       .HasForeignKey(e => e.SiteId)
+                       .OnDelete(DeleteBehavior.SetNull);
             });
 
             // Site

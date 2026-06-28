@@ -24,6 +24,14 @@ namespace parkmeter_management.Domain.Entities
         public string PasswordHash { get; private set; } = string.Empty;
         public Role Role { get; private set; }
         public bool IsActive { get; private set; } = true;
+
+        public Guid? SiteId { get; private set; }
+        public Site? Site { get; set; }
+
+        public void AssignToSite(Guid siteId)
+        {
+            SiteId = siteId;
+        }
         public DateTime CreatedAt { get; private set; } = DateTime.UtcNow;
 
         public void Deactivate() => IsActive = false;
@@ -36,6 +44,7 @@ namespace parkmeter_management.Domain.Entities
             Role = role;
             IsActive = isActive;
         }
+
 
     }
 }

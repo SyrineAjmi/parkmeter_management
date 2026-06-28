@@ -28,13 +28,14 @@ namespace parkmeter_management.Application.Managers.Implementations
 
         public async Task<Guid> CreateUser(
             string name, string email,
-            string password, Role role)
+            string password, Role role, Guid? siteId)
             => await _mediator.Send(new CreateUserCommand
             {
                 Name = name,
                 Email = email,
                 Password = password,
-                Role = role
+                Role = role,
+                SiteId = siteId
             });
 
         public async Task<bool> UpdateUser(

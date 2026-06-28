@@ -6,7 +6,7 @@ namespace parkmeter_management.Application.Managers.Interfaces
     public interface IUserManager
     {
         Task<Guid> CreateUser(string name, string email,
-            string password, Role role);
+            string password, Role role, Guid? siteId);
         Task<bool> UpdateUser(Guid id, string name,
             string email, Role role, bool isActive);
         Task<bool> ChangePassword(

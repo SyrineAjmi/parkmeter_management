@@ -1,4 +1,6 @@
-﻿namespace parkmeter_management.Api.DTOs
+﻿using parkmeter_management.Domain.Entities;
+
+namespace parkmeter_management.Api.DTOs
 {
     public class UserDto
     {
@@ -7,6 +9,8 @@
         public string Email { get; set; } = string.Empty;
         public string Role { get; set; } = string.Empty;
         public bool IsActive { get; set; }
+        public Guid? SiteId { get; set; }
+
         public DateTime CreatedAt { get; set; }
     
     }
