@@ -35,7 +35,8 @@ namespace parkmeter_management.Infrastructure.Auth
                 new Claim(ClaimTypes.Name,
                     user.Name),
                 new Claim(ClaimTypes.Role,
-                    user.Role.ToString())
+                    user.Role.ToString()),
+                new Claim("siteId", user.SiteId?.ToString() ?? "")
             };
 
             var token = new JwtSecurityToken(

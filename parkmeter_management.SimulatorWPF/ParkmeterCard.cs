@@ -402,10 +402,11 @@ namespace SimulatorWPF
             _offText.Visibility = Visibility.Collapsed;
 
             // cash
+            // cash
             var cashPct = Math.Min(100.0, (double)(sim.CashAmount / 40.000m) * 100.0);
             _cashValue.Text = $"{sim.CashAmount:F3} DT";
-            var cashColor = cashPct >= 100 ? Color.FromRgb(0xEF, 0x44, 0x44)
-                : cashPct >= 70 ? Color.FromRgb(0xF5, 0x9E, 0x0B)
+            var cashColor = sim.CashBoxAlertSent ? Color.FromRgb(0xEF, 0x44, 0x44)
+                : sim.CashBoxWarnSent ? Color.FromRgb(0xF5, 0x9E, 0x0B)
                 : Color.FromRgb(0x10, 0xB9, 0x81);
             _cashValue.Foreground = new SolidColorBrush(cashColor);
 

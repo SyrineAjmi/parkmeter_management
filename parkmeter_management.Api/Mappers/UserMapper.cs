@@ -13,7 +13,9 @@ namespace parkmeter_management.Api.Mappers
                 Email = user.Email,
                 Role = user.Role.ToString(),
                 IsActive = user.IsActive,
-                CreatedAt = user.CreatedAt
+                CreatedAt = user.CreatedAt,
+                SiteId = user.SiteId
+
             };
 
         public static IEnumerable<UserDto> ToDtos(
