@@ -14,7 +14,7 @@ namespace parkmeter_management.Api.Mappers
                 Role = user.Role.ToString(),
                 IsActive = user.IsActive,
                 CreatedAt = user.CreatedAt,
-                SiteId = user.SiteId
+                SiteId = user.SiteId 
 
             };
 
